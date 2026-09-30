@@ -1,0 +1,134 @@
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+enum Role {
+  SUPER_ADMIN
+  STORE_OWNER
+  CASHIER
+}
+
+enum AccountStatus {
+  TRIAL
+  ACTIVE
+  EXPIRED
+  SUSPENDED
+}
+
+enum PaymentMethod {
+  CASH
+  QRIS
+  DEBIT_CREDIT
+}
+
+model User {
+  id                String         @id @default(cuid())
+  username          String         @unique
+  passwordHash      String
+  fullName          String?
+  phone             String?
+  role              Role           @default(STORE_OWNER)
+  accountStatus     AccountStatus  @default(TRIAL)
+  trialExpiresAt    DateTime       // Ditetapkan +30 hari saat registrasi
+  subscriptionUntil DateTime?      // Tanggal akhir perpanjangan oleh Super Admin
+  notes             String?        // Catatan admin
+  createdAt         DateTime       @default(now())
+  updatedAt         DateTime       @updatedAt
+
+  stores            Store[]
+
+  @@map("users")
+}
+
+model Store {
+  id              String           @id @default(cuid())
+  userId          String
+  user            User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name            String           @default("Toko Sumber Rejeki")
+  address         String?
+  phone           String?
+  receiptHeader   String?          @default("Terima Kasih Atas Kunjungan Anda")
+  receiptFooter   String?          @default("Barang yang sudah dibeli tidak dapat ditukar/dikembalikan")
+  paperSize       String           @default("58mm") // 58mm atau 80mm
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+
+  categories      Category[]
+  products        Product[]
+  transactions    Transaction[]
+
+  @@map("stores")
+}
+
+model Category {
+  id        String    @id @default(cuid())
+  storeId   String
+  store     Store     @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  name      String    // Misal: Makanan, Minuman, Snack, Lainnya
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  products  Product[]
+
+  @@map("categories")
+}
+
+model Product {
+  id          String            @id @default(cuid())
+  storeId     String
+  store       Store             @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  categoryId  String?
+  category    Category?         @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  name        String
+  price       Float             // Harga Jual
+  costPrice   Float?            @default(0) // Harga Pokok
+  stock       Int               @default(0)
+  minStock    Int               @default(5) // Ambang batas stok menipis
+  imageUrl    String?
+  barcode     String?
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
+
+  items       TransactionItem[]
+
+  @@map("products")
+}
+
+model Transaction {
+  id              String            @id @default(cuid())
+  invoiceNumber   String            @unique // Misal: TRX20260930001
+  storeId         String
+  store           Store             @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  totalAmount     Float
+  paidAmount      Float
+  changeAmount    Float             @default(0)
+  paymentMethod   PaymentMethod     @default(CASH)
+  cashierName     String?
+  customerName    String?
+  notes           String?
+  createdAt       DateTime          @default(now())
+
+  items           TransactionItem[]
+
+  @@map("transactions")
+}
+
+model TransactionItem {
+  id            String      @id @default(cuid())
+  transactionId String
+  transaction   Transaction @relation(fields: [transactionId], references: [id], onDelete: Cascade)
+  productId     String?
+  product       Product?    @relation(fields: [productId], references: [id], onDelete: SetNull)
+  productName   String
+  price         Float
+  quantity      Int
+  subtotal      Float
+
+  @@map("transaction_items")
+}
