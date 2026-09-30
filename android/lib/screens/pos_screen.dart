@@ -3,16 +3,19 @@ import 'package:intl/intl.dart';
 import '../models/product.dart';
 import '../services/api_service.dart';
 import '../services/printer_service.dart';
+import '../services/sync_service.dart';
 import '../utils/theme.dart';
 
 class PosScreen extends StatefulWidget {
   final ApiService apiService;
   final PrinterService printerService;
+  final SyncService syncService;
 
   const PosScreen({
     super.key,
     required this.apiService,
     required this.printerService,
+    required this.syncService,
   });
 
   @override
@@ -20,30 +23,42 @@ class PosScreen extends StatefulWidget {
 }
 
 class _PosScreenState extends State<PosScreen> {
-  List<Product> _products = [];
-  List<dynamic> _categories = [];
   final List<CartItem> _cart = [];
 
-  bool _isLoading = true;
+  bool _isLoading = false;
   String _selectedCategory = 'ALL';
   String _searchQuery = '';
   final _searchController = TextEditingController();
 
-  Map<String, dynamic>? _storeProfile;
   final NumberFormat _currencyFormat = NumberFormat.currency(
     locale: 'id_ID',
     symbol: 'Rp ',
     decimalDigits: 0,
   );
 
+  List<Product> get _products => widget.syncService.products;
+  List<dynamic> get _categories => widget.syncService.categories;
+  Map<String, dynamic>? get _storeProfile => widget.syncService.profile;
+
   @override
   void initState() {
     super.initState();
-    _loadData();
+    widget.syncService.addListener(_onSyncUpdate);
+    if (!widget.syncService.isInitialized) {
+      _isLoading = true;
+      widget.syncService.init().then((_) {
+        if (mounted) setState(() => _isLoading = false);
+      });
+    }
+  }
+
+  void _onSyncUpdate() {
+    if (mounted) setState(() {});
   }
 
   @override
   void dispose() {
+    widget.syncService.removeListener(_onSyncUpdate);
     _searchController.dispose();
     super.dispose();
   }
@@ -51,32 +66,22 @@ class _PosScreenState extends State<PosScreen> {
   Future<void> _loadData() async {
     setState(() => _isLoading = true);
     try {
-      final results = await Future.wait([
-        widget.apiService.getProducts(),
-        widget.apiService.getCategories(),
-        widget.apiService.getStoreProfile(),
-      ]);
-
-      if (!mounted) return;
-
-      final productsData = results[0] as List<dynamic>;
-      final categoriesData = results[1] as List<dynamic>;
-      final storeData = results[2] as Map<String, dynamic>?;
-
-      setState(() {
-        _products = productsData.map((p) => Product.fromJson(p)).toList();
-        _categories = categoriesData;
-        _storeProfile = storeData;
-        _isLoading = false;
-      });
-    } catch (e) {
+      await widget.syncService.forceSync();
       if (mounted) {
-        setState(() => _isLoading = false);
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Gagal memuat data: $e'), backgroundColor: AppColors.error),
+          SnackBar(
+            content: Text(
+              widget.syncService.isSynced
+                  ? 'Data berhasil disinkronkan dengan cloud!'
+                  : 'Tersimpan lokal (${widget.syncService.pendingCount} data menunggu sinkron)',
+            ),
+            backgroundColor: widget.syncService.isSynced ? AppColors.success : AppColors.warning,
+            duration: const Duration(seconds: 2),
+          ),
         );
       }
-    }
+    } catch (_) {}
+    if (mounted) setState(() => _isLoading = false);
   }
 
   List<Product> get _filteredProducts {
@@ -415,17 +420,12 @@ class _PosScreenState extends State<PosScreen> {
                     : () async {
                         setDialogState(() => isProcessing = true);
                         try {
-                          final itemsPayload = _cart.map((c) => {
-                            'productId': c.product.id,
-                            'productName': c.product.name,
-                            'quantity': c.quantity,
-                            'price': c.product.price,
-                            'subtotal': c.subtotal,
-                          }).toList();
-
-                          final res = await widget.apiService.createTransaction(
-                            items: itemsPayload,
+                          final tx = await widget.syncService.createTransactionLocal(
+                            cartItems: List.from(_cart),
+                            totalAmount: _cartTotal,
                             paidAmount: paidAmount,
+                            changeAmount: changeAmount,
+                            paymentMethod: 'CASH',
                             customerName: customerController.text.trim().isNotEmpty
                                 ? customerController.text.trim()
                                 : null,
@@ -434,26 +434,27 @@ class _PosScreenState extends State<PosScreen> {
                           if (!mounted) return;
                           Navigator.pop(dialogCtx);
 
-                          if (res['statusCode'] == 201 || res['statusCode'] == 200) {
-                            final tx = res['transaction'];
-                            _showSuccessDialog(
-                              invoiceNumber: tx != null ? tx['invoiceNumber'] : 'INV-${DateTime.now().millisecondsSinceEpoch}',
-                              total: _cartTotal,
-                              paid: paidAmount,
-                              change: changeAmount,
-                              items: itemsPayload,
-                            );
+                          final itemsPayload = tx.items.map((c) => {
+                            'productId': c.productId,
+                            'productName': c.productName,
+                            'quantity': c.quantity,
+                            'price': c.price,
+                            'subtotal': c.subtotal,
+                          }).toList();
 
-                            // Refresh products stock & clear cart
-                            _loadData();
-                            setState(() => _cart.clear());
-                          } else {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(content: Text(res['error'] ?? 'Gagal memproses transaksi'), backgroundColor: AppColors.error),
-                            );
-                          }
+                          _showSuccessDialog(
+                            invoiceNumber: tx.invoiceNumber,
+                            total: tx.totalAmount,
+                            paid: tx.paidAmount,
+                            change: tx.changeAmount,
+                            items: itemsPayload,
+                          );
+
+                          // Clear cart immediately
+                          setState(() => _cart.clear());
                         } catch (e) {
                           if (mounted) {
+                            setDialogState(() => isProcessing = false);
                             ScaffoldMessenger.of(context).showSnackBar(
                               SnackBar(content: Text('Terjadi kesalahan: $e'), backgroundColor: AppColors.error),
                             );
@@ -557,6 +558,181 @@ class _PosScreenState extends State<PosScreen> {
     );
   }
 
+  Widget _buildCloudSyncIcon() {
+    final isSynced = widget.syncService.isSynced;
+    final isSyncing = widget.syncService.isSyncing;
+    final pendingCount = widget.syncService.pendingCount;
+
+    // Cloud is red with 'X' in center when unsynced/pending, green with '✓' when synced
+    final cloudColor = isSynced ? const Color(0xFF16A34A) : const Color(0xFFDC2626);
+
+    return IconButton(
+      tooltip: isSynced
+          ? 'Semua data tersinkron ke cloud'
+          : '$pendingCount data belum tersinkron',
+      onPressed: _showSyncStatusDialog,
+      icon: SizedBox(
+        width: 38,
+        height: 38,
+        child: Stack(
+          alignment: Alignment.center,
+          children: [
+            Icon(
+              Icons.cloud_rounded,
+              size: 34,
+              color: cloudColor,
+            ),
+            if (isSyncing)
+              const SizedBox(
+                width: 14,
+                height: 14,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  color: Colors.white,
+                ),
+              )
+            else if (isSynced)
+              const Icon(
+                Icons.check_rounded,
+                size: 17,
+                color: Colors.white,
+              )
+            else
+              const Icon(
+                Icons.close_rounded,
+                size: 17,
+                color: Colors.white,
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showSyncStatusDialog() {
+    showDialog(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (context, setDlgState) {
+          final isSynced = widget.syncService.isSynced;
+          final isSyncing = widget.syncService.isSyncing;
+          final pending = widget.syncService.pendingCount;
+          final lastSync = widget.syncService.lastSyncTime;
+          final lastError = widget.syncService.lastSyncError;
+
+          return AlertDialog(
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+            title: Row(
+              children: [
+                Stack(
+                  alignment: Alignment.center,
+                  children: [
+                    Icon(
+                      Icons.cloud_rounded,
+                      size: 34,
+                      color: isSynced ? const Color(0xFF16A34A) : const Color(0xFFDC2626),
+                    ),
+                    Icon(
+                      isSynced ? Icons.check_rounded : Icons.close_rounded,
+                      size: 17,
+                      color: Colors.white,
+                    ),
+                  ],
+                ),
+                const SizedBox(width: 10),
+                const Text('Sinkronisasi Cloud', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+              ],
+            ),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: isSynced ? const Color(0xFFDCFCE7) : const Color(0xFFFEE2E2),
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(
+                      color: isSynced ? const Color(0xFF86EFAC) : const Color(0xFFFCA5A5),
+                    ),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(
+                        isSynced ? Icons.check_circle_rounded : Icons.cloud_off_rounded,
+                        color: isSynced ? const Color(0xFF16A34A) : const Color(0xFFDC2626),
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Text(
+                          isSynced
+                              ? 'Semua data tersinkron ke cloud'
+                              : '$pending data lokal belum tersinkron',
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            color: isSynced ? const Color(0xFF166534) : const Color(0xFF991B1B),
+                            fontSize: 13,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 14),
+                const Text(
+                  '• Data selalu tersimpan secara lokal di HP Anda terlebih dahulu agar proses transaksi seketika (0 detik).',
+                  style: TextStyle(fontSize: 12, color: AppColors.textPrimary),
+                ),
+                const SizedBox(height: 6),
+                const Text(
+                  '• Sinkronisasi otomatis berjalan di latar belakang (background) ketika terhubung ke internet.',
+                  style: TextStyle(fontSize: 12, color: AppColors.textSecondary),
+                ),
+                const SizedBox(height: 12),
+                if (lastSync != null) ...[
+                  Text(
+                    'Terakhir sinkron: ${DateFormat('dd MMM yyyy, HH:mm:ss').format(lastSync)}',
+                    style: const TextStyle(fontSize: 11, color: AppColors.textSecondary),
+                  ),
+                ],
+                if (lastError != null) ...[
+                  const SizedBox(height: 6),
+                  Text(
+                    'Catatan: $lastError',
+                    style: const TextStyle(fontSize: 11, color: AppColors.error),
+                  ),
+                ],
+              ],
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(ctx),
+                child: const Text('Tutup'),
+              ),
+              ElevatedButton.icon(
+                onPressed: isSyncing
+                    ? null
+                    : () async {
+                        setDlgState(() {});
+                        await widget.syncService.forceSync();
+                        if (ctx.mounted) setDlgState(() {});
+                      },
+                icon: isSyncing
+                    ? const SizedBox(
+                        width: 14,
+                        height: 14,
+                        child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                      )
+                    : const Icon(Icons.sync_rounded, size: 18),
+                label: Text(isSyncing ? 'Menyinkronkan...' : 'Sinkronkan Sekarang'),
+              ),
+            ],
+          );
+        },
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -564,8 +740,10 @@ class _PosScreenState extends State<PosScreen> {
       appBar: AppBar(
         title: Text(_storeProfile?['name'] ?? 'KasirKu POS'),
         actions: [
+          _buildCloudSyncIcon(),
           IconButton(
             icon: const Icon(Icons.refresh),
+            tooltip: 'Perbarui & Sinkron Data',
             onPressed: _loadData,
           ),
         ],

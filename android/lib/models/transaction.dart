@@ -49,6 +49,22 @@ class TransactionModel {
       items: parsedItems,
     );
   }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'id': id,
+      'invoiceNumber': invoiceNumber,
+      'totalAmount': totalAmount,
+      'paidAmount': paidAmount,
+      'changeAmount': changeAmount,
+      'paymentMethod': paymentMethod,
+      'status': status,
+      'customerName': customerName,
+      'notes': notes,
+      'createdAt': createdAt.toIso8601String(),
+      'items': items.map((i) => i.toJson()).toList(),
+    };
+  }
 }
 
 class TransactionItemModel {
@@ -77,5 +93,16 @@ class TransactionItemModel {
       price: (json['price'] is num) ? (json['price'] as num).toDouble() : 0.0,
       subtotal: (json['subtotal'] is num) ? (json['subtotal'] as num).toDouble() : 0.0,
     );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'id': id,
+      'productId': productId,
+      'productName': productName,
+      'quantity': quantity,
+      'price': price,
+      'subtotal': subtotal,
+    };
   }
 }

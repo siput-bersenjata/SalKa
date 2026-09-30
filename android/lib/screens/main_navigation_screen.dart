@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../services/api_service.dart';
 import '../services/printer_service.dart';
+import '../services/sync_service.dart';
 import '../utils/theme.dart';
 import 'pos_screen.dart';
 import 'history_screen.dart';
@@ -19,23 +20,45 @@ class MainNavigationScreen extends StatefulWidget {
 class _MainNavigationScreenState extends State<MainNavigationScreen> {
   int _currentIndex = 0;
   late final PrinterService _printerService;
+  late final SyncService _syncService;
   late final List<Widget> _screens;
 
   @override
   void initState() {
     super.initState();
     _printerService = PrinterService();
+    _syncService = SyncService(apiService: widget.apiService);
+    _syncService.init();
+
     _screens = [
-      PosScreen(apiService: widget.apiService, printerService: _printerService),
-      HistoryScreen(apiService: widget.apiService, printerService: _printerService),
-      ProductsScreen(apiService: widget.apiService),
-      PrinterSettingsScreen(printerService: _printerService, apiService: widget.apiService),
-      StoreSettingsScreen(apiService: widget.apiService),
+      PosScreen(
+        apiService: widget.apiService,
+        printerService: _printerService,
+        syncService: _syncService,
+      ),
+      HistoryScreen(
+        apiService: widget.apiService,
+        printerService: _printerService,
+        syncService: _syncService,
+      ),
+      ProductsScreen(
+        apiService: widget.apiService,
+        syncService: _syncService,
+      ),
+      PrinterSettingsScreen(
+        printerService: _printerService,
+        apiService: widget.apiService,
+      ),
+      StoreSettingsScreen(
+        apiService: widget.apiService,
+        syncService: _syncService,
+      ),
     ];
   }
 
   @override
   void dispose() {
+    _syncService.dispose();
     _printerService.disconnect();
     super.dispose();
   }

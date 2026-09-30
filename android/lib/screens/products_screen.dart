@@ -2,20 +2,25 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../models/product.dart';
 import '../services/api_service.dart';
+import '../services/sync_service.dart';
 import '../utils/theme.dart';
 
 class ProductsScreen extends StatefulWidget {
   final ApiService apiService;
-  const ProductsScreen({super.key, required this.apiService});
+  final SyncService syncService;
+
+  const ProductsScreen({
+    super.key,
+    required this.apiService,
+    required this.syncService,
+  });
 
   @override
   State<ProductsScreen> createState() => _ProductsScreenState();
 }
 
 class _ProductsScreenState extends State<ProductsScreen> {
-  List<Product> _products = [];
-  List<dynamic> _categories = [];
-  bool _isLoading = true;
+  bool _isLoading = false;
   String _searchQuery = '';
   bool _filterLowStockOnly = false;
   final _searchController = TextEditingController();
@@ -26,14 +31,22 @@ class _ProductsScreenState extends State<ProductsScreen> {
     decimalDigits: 0,
   );
 
+  List<Product> get _products => widget.syncService.products;
+  List<dynamic> get _categories => widget.syncService.categories;
+
   @override
   void initState() {
     super.initState();
-    _loadData();
+    widget.syncService.addListener(_onSyncUpdate);
+  }
+
+  void _onSyncUpdate() {
+    if (mounted) setState(() {});
   }
 
   @override
   void dispose() {
+    widget.syncService.removeListener(_onSyncUpdate);
     _searchController.dispose();
     super.dispose();
   }
@@ -41,29 +54,9 @@ class _ProductsScreenState extends State<ProductsScreen> {
   Future<void> _loadData() async {
     setState(() => _isLoading = true);
     try {
-      final results = await Future.wait([
-        widget.apiService.getProducts(),
-        widget.apiService.getCategories(),
-      ]);
-
-      if (!mounted) return;
-
-      final productsData = results[0] as List<dynamic>;
-      final categoriesData = results[1] as List<dynamic>;
-
-      setState(() {
-        _products = productsData.map((p) => Product.fromJson(p)).toList();
-        _categories = categoriesData;
-        _isLoading = false;
-      });
-    } catch (e) {
-      if (mounted) {
-        setState(() => _isLoading = false);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Gagal memuat produk: $e'), backgroundColor: AppColors.error),
-        );
-      }
-    }
+      await widget.syncService.forceSync();
+    } catch (_) {}
+    if (mounted) setState(() => _isLoading = false);
   }
 
   List<Product> get _filteredProducts {
@@ -179,6 +172,42 @@ class _ProductsScreenState extends State<ProductsScreen> {
             ),
           ),
           actions: [
+            if (isEdit)
+              TextButton.icon(
+                icon: const Icon(Icons.delete_outline, color: AppColors.error, size: 18),
+                label: const Text('Hapus', style: TextStyle(color: AppColors.error)),
+                onPressed: isSubmitting
+                    ? null
+                    : () async {
+                        final confirm = await showDialog<bool>(
+                          context: context,
+                          builder: (delCtx) => AlertDialog(
+                            title: const Text('Hapus Menu?'),
+                            content: Text('Yakin ingin menghapus menu "${existingProduct.name}"? Data akan dihapus secara lokal dan cloud.'),
+                            actions: [
+                              TextButton(onPressed: () => Navigator.pop(delCtx, false), child: const Text('Batal')),
+                              ElevatedButton(
+                                style: ElevatedButton.styleFrom(backgroundColor: AppColors.error),
+                                onPressed: () => Navigator.pop(delCtx, true),
+                                child: const Text('Hapus'),
+                              ),
+                            ],
+                          ),
+                        );
+
+                        if (confirm == true) {
+                          await widget.syncService.deleteProductLocal(existingProduct.id);
+                          if (!mounted) return;
+                          Navigator.pop(dialogCtx);
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text('Menu telah dihapus secara lokal & diantrekan ke cloud'),
+                              backgroundColor: AppColors.warning,
+                            ),
+                          );
+                        }
+                      },
+              ),
             TextButton(
               onPressed: isSubmitting ? null : () => Navigator.pop(dialogCtx),
               child: const Text('Batal'),
@@ -226,29 +255,21 @@ class _ProductsScreenState extends State<ProductsScreen> {
                           'categoryId': selectedCategory,
                         };
 
-                        final res = isEdit
-                            ? await widget.apiService.updateProduct(existingProduct.id, payload)
-                            : await widget.apiService.addProduct(payload);
-
-                        if (!mounted) return;
-
-                        if (res['statusCode'] != 200 && res['statusCode'] != 201) {
-                          setDialogState(() => isSubmitting = false);
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                              content: Text(res['error'] ?? 'Gagal menyimpan produk'),
-                              backgroundColor: AppColors.error,
-                            ),
-                          );
-                          return;
+                        if (isEdit) {
+                          await widget.syncService.updateProductLocal(existingProduct.id, payload);
+                        } else {
+                          await widget.syncService.addProductLocal(payload);
                         }
 
+                        if (!mounted) return;
                         Navigator.pop(dialogCtx);
-                        _loadData();
                         ScaffoldMessenger.of(context).showSnackBar(
                           SnackBar(
-                            content: Text(isEdit ? 'Menu berhasil diperbarui' : 'Menu berhasil ditambahkan'),
+                            content: Text(isEdit
+                                ? 'Menu berhasil diperbarui (tersimpan lokal & disinkronkan ke cloud)'
+                                : 'Menu berhasil ditambahkan (tersimpan lokal & disinkronkan ke cloud)'),
                             backgroundColor: AppColors.success,
+                            duration: const Duration(seconds: 2),
                           ),
                         );
                       } catch (e) {
@@ -273,29 +294,7 @@ class _ProductsScreenState extends State<ProductsScreen> {
   void _quickStockAdjust(Product product, int delta) async {
     final newStock = product.stock + delta;
     if (newStock < 0) return;
-
-    try {
-      await widget.apiService.updateProduct(product.id, {'stock': newStock});
-      setState(() {
-        final idx = _products.indexWhere((p) => p.id == product.id);
-        if (idx >= 0) {
-          _products[idx] = Product(
-            id: product.id,
-            name: product.name,
-            description: product.description,
-            price: product.price,
-            costPrice: product.costPrice,
-            stock: newStock,
-            minStock: product.minStock,
-            barcode: product.barcode,
-            imageUrl: product.imageUrl,
-            categoryId: product.categoryId,
-            categoryName: product.categoryName,
-            isActive: product.isActive,
-          );
-        }
-      });
-    } catch (_) {}
+    await widget.syncService.adjustStockLocal(product.id, delta);
   }
 
   @override

@@ -1,11 +1,18 @@
 import 'package:flutter/material.dart';
 import '../services/api_service.dart';
+import '../services/sync_service.dart';
 import '../utils/theme.dart';
 import 'login_screen.dart';
 
 class StoreSettingsScreen extends StatefulWidget {
   final ApiService apiService;
-  const StoreSettingsScreen({super.key, required this.apiService});
+  final SyncService syncService;
+
+  const StoreSettingsScreen({
+    super.key,
+    required this.apiService,
+    required this.syncService,
+  });
 
   @override
   State<StoreSettingsScreen> createState() => _StoreSettingsScreenState();
@@ -19,7 +26,7 @@ class _StoreSettingsScreenState extends State<StoreSettingsScreen> {
   final _footerController = TextEditingController();
 
   String _paperSize = '58mm';
-  bool _isLoading = true;
+  bool _isLoading = false;
   bool _isSaving = false;
 
   @override
@@ -39,21 +46,28 @@ class _StoreSettingsScreenState extends State<StoreSettingsScreen> {
   }
 
   Future<void> _loadStoreProfile() async {
-    setState(() => _isLoading = true);
-    try {
-      final store = await widget.apiService.getStoreProfile();
-      if (!mounted) return;
+    final cached = widget.syncService.profile;
+    if (cached != null) {
+      _applyProfile(cached);
+    } else {
+      setState(() => _isLoading = true);
+      try {
+        final store = await widget.apiService.getStoreProfile();
+        if (store != null && mounted) {
+          _applyProfile(store);
+        }
+      } catch (_) {}
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
 
-      if (store != null) {
-        _nameController.text = store['name'] ?? '';
-        _addressController.text = store['address'] ?? '';
-        _phoneController.text = store['phone'] ?? '';
-        _headerController.text = store['receiptHeader'] ?? '';
-        _footerController.text = store['receiptFooter'] ?? '';
-        _paperSize = store['receiptPaperSize'] == '80mm' ? '80mm' : '58mm';
-      }
-    } catch (_) {}
-    if (mounted) setState(() => _isLoading = false);
+  void _applyProfile(Map<String, dynamic> store) {
+    _nameController.text = store['name'] ?? '';
+    _addressController.text = store['address'] ?? '';
+    _phoneController.text = store['phone'] ?? '';
+    _headerController.text = store['receiptHeader'] ?? '';
+    _footerController.text = store['receiptFooter'] ?? '';
+    _paperSize = store['receiptPaperSize'] == '80mm' ? '80mm' : '58mm';
   }
 
   Future<void> _saveSettings() async {
@@ -67,29 +81,26 @@ class _StoreSettingsScreenState extends State<StoreSettingsScreen> {
 
     setState(() => _isSaving = true);
     try {
-      final res = await widget.apiService.updateStoreProfile({
+      final payload = {
         'name': name,
         'address': _addressController.text.trim().isNotEmpty ? _addressController.text.trim() : null,
         'phone': _phoneController.text.trim().isNotEmpty ? _phoneController.text.trim() : null,
         'receiptPaperSize': _paperSize,
         'receiptHeader': _headerController.text.trim().isNotEmpty ? _headerController.text.trim() : null,
         'receiptFooter': _footerController.text.trim().isNotEmpty ? _footerController.text.trim() : null,
-      });
+      };
+
+      await widget.syncService.updateStoreProfileLocal(payload);
 
       if (!mounted) return;
 
-      if (res['statusCode'] == 200) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Pengaturan toko & kertas thermal berhasil disimpan!'),
-            backgroundColor: AppColors.success,
-          ),
-        );
-      } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(res['error'] ?? 'Gagal menyimpan'), backgroundColor: AppColors.error),
-        );
-      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Pengaturan toko & struk berhasil disimpan (tersimpan lokal & sinkron cloud)!'),
+          backgroundColor: AppColors.success,
+          duration: Duration(seconds: 2),
+        ),
+      );
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(

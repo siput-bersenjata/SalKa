@@ -3,16 +3,19 @@ import 'package:intl/intl.dart';
 import '../models/transaction.dart';
 import '../services/api_service.dart';
 import '../services/printer_service.dart';
+import '../services/sync_service.dart';
 import '../utils/theme.dart';
 
 class HistoryScreen extends StatefulWidget {
   final ApiService apiService;
   final PrinterService printerService;
+  final SyncService syncService;
 
   const HistoryScreen({
     super.key,
     required this.apiService,
     required this.printerService,
+    required this.syncService,
   });
 
   @override
@@ -20,11 +23,9 @@ class HistoryScreen extends StatefulWidget {
 }
 
 class _HistoryScreenState extends State<HistoryScreen> {
-  List<TransactionModel> _transactions = [];
-  bool _isLoading = true;
+  bool _isLoading = false;
   String _searchQuery = '';
   final _searchController = TextEditingController();
-  Map<String, dynamic>? _storeProfile;
 
   final NumberFormat _currencyFormat = NumberFormat.currency(
     locale: 'id_ID',
@@ -32,14 +33,22 @@ class _HistoryScreenState extends State<HistoryScreen> {
     decimalDigits: 0,
   );
 
+  List<TransactionModel> get _transactions => widget.syncService.transactions;
+  Map<String, dynamic>? get _storeProfile => widget.syncService.profile;
+
   @override
   void initState() {
     super.initState();
-    _loadData();
+    widget.syncService.addListener(_onSyncUpdate);
+  }
+
+  void _onSyncUpdate() {
+    if (mounted) setState(() {});
   }
 
   @override
   void dispose() {
+    widget.syncService.removeListener(_onSyncUpdate);
     _searchController.dispose();
     super.dispose();
   }
@@ -47,28 +56,9 @@ class _HistoryScreenState extends State<HistoryScreen> {
   Future<void> _loadData() async {
     setState(() => _isLoading = true);
     try {
-      final res = await widget.apiService.getTransactions(page: 1, limit: 100);
-      final profile = await widget.apiService.getStoreProfile();
-
-      if (!mounted) return;
-
-      final list = (res['transactions'] as List<dynamic>? ?? [])
-          .map((item) => TransactionModel.fromJson(item))
-          .toList();
-
-      setState(() {
-        _transactions = list;
-        _storeProfile = profile;
-        _isLoading = false;
-      });
-    } catch (e) {
-      if (mounted) {
-        setState(() => _isLoading = false);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Gagal memuat transaksi: $e'), backgroundColor: AppColors.error),
-        );
-      }
-    }
+      await widget.syncService.forceSync();
+    } catch (_) {}
+    if (mounted) setState(() => _isLoading = false);
   }
 
   List<TransactionModel> get _filteredTransactions {
