@@ -1,0 +1,9 @@
+android/
+.git
+.agents/
+docs/
+*.apk
+*.log
+*.tmp
+node_modules/
+.next/
