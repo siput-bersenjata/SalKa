@@ -75,11 +75,80 @@ export async function POST(request: Request) {
 
       // Default categories
       const defaultCategories = ["Minuman", "Makanan", "Snack", "Lainnya"];
+      const catMap: Record<string, string> = {};
       for (const catName of defaultCategories) {
-        await tx.category.create({
+        const cat = await tx.category.create({
           data: {
             storeId: store.id,
             name: catName,
+          },
+        });
+        catMap[catName] = cat.id;
+      }
+
+      // Default starter products so newly created stores have ready-to-sell catalog
+      const starterProducts = [
+        {
+          name: "Air Mineral 600ml",
+          price: 3000,
+          costPrice: 2000,
+          stock: 50,
+          minStock: 5,
+          categoryId: catMap["Minuman"],
+          barcode: "899123456001",
+        },
+        {
+          name: "Teh Botol",
+          price: 4000,
+          costPrice: 2800,
+          stock: 45,
+          minStock: 5,
+          categoryId: catMap["Minuman"],
+          barcode: "899123456002",
+        },
+        {
+          name: "Indomie Goreng",
+          price: 3500,
+          costPrice: 2500,
+          stock: 35,
+          minStock: 5,
+          categoryId: catMap["Makanan"],
+          barcode: "899123456003",
+        },
+        {
+          name: "Roti Tawar",
+          price: 8000,
+          costPrice: 6000,
+          stock: 20,
+          minStock: 5,
+          categoryId: catMap["Makanan"],
+          barcode: "899123456004",
+        },
+        {
+          name: "Kopi Sachet",
+          price: 2000,
+          costPrice: 1200,
+          stock: 40,
+          minStock: 5,
+          categoryId: catMap["Minuman"],
+          barcode: "899123456005",
+        },
+        {
+          name: "Susu UHT",
+          price: 5000,
+          costPrice: 3800,
+          stock: 30,
+          minStock: 5,
+          categoryId: catMap["Minuman"],
+          barcode: "899123456006",
+        },
+      ];
+
+      for (const prod of starterProducts) {
+        await tx.product.create({
+          data: {
+            storeId: store.id,
+            ...prod,
           },
         });
       }
