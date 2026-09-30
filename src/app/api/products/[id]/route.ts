@@ -53,18 +53,43 @@ export async function PUT(
     const body = await request.json();
     const { name, price, costPrice, stock, minStock, categoryId, barcode, imageUrl } = body;
 
+    const dataToUpdate: any = {};
+    if (name) dataToUpdate.name = name.trim();
+    if (price !== undefined && price !== null && price !== "") {
+      const parsedPrice = typeof price === "number" ? price : parseFloat(price);
+      if (!isNaN(parsedPrice)) dataToUpdate.price = parsedPrice;
+    }
+    if (costPrice !== undefined && costPrice !== null) {
+      if (costPrice === "") {
+        dataToUpdate.costPrice = 0;
+      } else {
+        const parsedCost = typeof costPrice === "number" ? costPrice : parseFloat(costPrice);
+        dataToUpdate.costPrice = !isNaN(parsedCost) ? parsedCost : 0;
+      }
+    }
+    if (stock !== undefined && stock !== null) {
+      if (stock === "") {
+        dataToUpdate.stock = 0;
+      } else {
+        const parsedStock = typeof stock === "number" ? Math.floor(stock) : parseInt(stock, 10);
+        dataToUpdate.stock = !isNaN(parsedStock) ? parsedStock : 0;
+      }
+    }
+    if (minStock !== undefined && minStock !== null) {
+      if (minStock === "") {
+        dataToUpdate.minStock = 5;
+      } else {
+        const parsedMin = typeof minStock === "number" ? Math.floor(minStock) : parseInt(minStock, 10);
+        dataToUpdate.minStock = !isNaN(parsedMin) ? parsedMin : 5;
+      }
+    }
+    if (categoryId !== undefined) dataToUpdate.categoryId = categoryId || null;
+    if (barcode !== undefined) dataToUpdate.barcode = barcode?.trim() || null;
+    if (imageUrl !== undefined) dataToUpdate.imageUrl = imageUrl?.trim() || null;
+
     const updated = await prisma.product.update({
       where: { id: params.id },
-      data: {
-        ...(name && { name: name.trim() }),
-        ...(price !== undefined && { price: parseFloat(price) }),
-        ...(costPrice !== undefined && { costPrice: parseFloat(costPrice) }),
-        ...(stock !== undefined && { stock: parseInt(stock) }),
-        ...(minStock !== undefined && { minStock: parseInt(minStock) }),
-        ...(categoryId !== undefined && { categoryId: categoryId || null }),
-        ...(barcode !== undefined && { barcode: barcode?.trim() || null }),
-        ...(imageUrl !== undefined && { imageUrl: imageUrl?.trim() || null }),
-      },
+      data: dataToUpdate,
       include: { category: true },
     });
 

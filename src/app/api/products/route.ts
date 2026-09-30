@@ -80,21 +80,56 @@ export async function POST(request: Request) {
         ? customStoreId
         : payload.storeId;
 
-    if (!storeId || !name || price === undefined) {
+    if (!storeId || !name || price === undefined || price === null || price === "") {
       return NextResponse.json(
         { error: "Nama produk dan harga jual wajib diisi." },
         { status: 400 }
       );
     }
 
+    const numPrice = typeof price === "number" ? price : parseFloat(price);
+    if (isNaN(numPrice) || numPrice < 0) {
+      return NextResponse.json(
+        { error: "Harga jual harus berupa angka valid." },
+        { status: 400 }
+      );
+    }
+
+    // Cost price (Harga Modal): jika kosong atau tidak valid, otomatis jadi 0
+    let numCostPrice = 0;
+    if (costPrice !== undefined && costPrice !== null && costPrice !== "") {
+      const parsed = typeof costPrice === "number" ? costPrice : parseFloat(costPrice);
+      if (!isNaN(parsed) && parsed >= 0) {
+        numCostPrice = parsed;
+      }
+    }
+
+    // Stock: jika kosong atau tidak valid, otomatis jadi 0
+    let numStock = 0;
+    if (stock !== undefined && stock !== null && stock !== "") {
+      const parsed = typeof stock === "number" ? Math.floor(stock) : parseInt(stock, 10);
+      if (!isNaN(parsed) && parsed >= 0) {
+        numStock = parsed;
+      }
+    }
+
+    // Min stock: default 5
+    let numMinStock = 5;
+    if (minStock !== undefined && minStock !== null && minStock !== "") {
+      const parsed = typeof minStock === "number" ? Math.floor(minStock) : parseInt(minStock, 10);
+      if (!isNaN(parsed) && parsed >= 0) {
+        numMinStock = parsed;
+      }
+    }
+
     const product = await prisma.product.create({
       data: {
         storeId,
         name: name.trim(),
-        price: parseFloat(price),
-        costPrice: costPrice !== undefined ? parseFloat(costPrice) : 0,
-        stock: stock !== undefined ? parseInt(stock) : 0,
-        minStock: minStock !== undefined ? parseInt(minStock) : 5,
+        price: numPrice,
+        costPrice: numCostPrice,
+        stock: numStock,
+        minStock: numMinStock,
         categoryId: categoryId || null,
         barcode: barcode?.trim() || null,
         imageUrl: imageUrl?.trim() || null,

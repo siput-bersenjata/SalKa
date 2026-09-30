@@ -118,10 +118,20 @@ export default function ProdukPage() {
       const url = editId ? `/api/products/${editId}` : "/api/products";
       const method = editId ? "PUT" : "POST";
 
+      const payload = {
+        name: form.name.trim(),
+        price: parseFloat(form.price) || 0,
+        costPrice: form.costPrice && form.costPrice.trim() !== "" ? parseFloat(form.costPrice) || 0 : 0,
+        stock: form.stock && form.stock.trim() !== "" ? parseInt(form.stock, 10) || 0 : 0,
+        minStock: form.minStock && form.minStock.trim() !== "" ? parseInt(form.minStock, 10) || 5 : 5,
+        categoryId: form.categoryId || null,
+        barcode: form.barcode ? form.barcode.trim() : null,
+      };
+
       const res = await fetch(url, {
         method,
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(form),
+        body: JSON.stringify(payload),
       });
 
       const data = await res.json();
@@ -285,10 +295,10 @@ export default function ProdukPage() {
                             {p.category?.name || "Lainnya"}
                           </td>
                           <td className="py-3.5 px-4 font-bold text-slate-900">
-                            Rp {p.price.toLocaleString("id-ID")}
+                            Rp {(Number(p.price) || 0).toLocaleString("id-ID")}
                           </td>
                           <td className="py-3.5 px-4 text-slate-500">
-                            Rp {(p.costPrice || 0).toLocaleString("id-ID")}
+                            Rp {(Number(p.costPrice) || 0).toLocaleString("id-ID")}
                           </td>
                           <td className="py-3.5 px-4 font-mono font-bold text-slate-800">
                             {p.stock} pcs
