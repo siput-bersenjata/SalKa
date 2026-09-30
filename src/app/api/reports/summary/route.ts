@@ -23,23 +23,25 @@ export async function GET(request: Request) {
     const whereStore: any = storeId ? { storeId } : {};
 
     // 1. Basic aggregates
-    const [transactionsCount, totalRevenueAggregate, productsCount, lowStockProducts] = await Promise.all([
+    // Fetch basic aggregates first
+    const [transactionsCount, totalRevenueAggregate, productsCount] = await Promise.all([
       prisma.transaction.count({ where: whereStore }),
       prisma.transaction.aggregate({
         where: whereStore,
         _sum: { totalAmount: true },
       }),
       prisma.product.count({ where: whereStore }),
-      prisma.product.findMany({
-        where: {
-          ...whereStore,
-          stock: { lte: prisma.product.fields.minStock },
-        },
-        include: { category: true },
-        take: 10,
-        orderBy: { stock: "asc" },
-      }),
     ]);
+
+    // Low stock: fetch products and filter where stock <= minStock (Prisma can't do field-to-field comparison)
+    const allProducts = await prisma.product.findMany({
+      where: whereStore,
+      include: { category: true },
+      orderBy: { stock: "asc" },
+    });
+    const lowStockProducts = allProducts
+      .filter((p) => p.stock <= p.minStock)
+      .slice(0, 10);
 
     // Total Items Sold
     const itemsSoldAggregate = await prisma.transactionItem.aggregate({
