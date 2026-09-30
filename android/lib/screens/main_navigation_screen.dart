@@ -47,40 +47,49 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
         index: _currentIndex,
         children: _screens,
       ),
-      bottomNavigationBar: Container(
-        decoration: const BoxDecoration(
-          border: Border(top: BorderSide(color: AppColors.border, width: 1)),
-        ),
-        child: BottomNavigationBar(
-          currentIndex: _currentIndex,
-          onTap: (index) => setState(() => _currentIndex = index),
-          type: BottomNavigationBarType.fixed,
-          selectedItemColor: AppColors.primary,
-          unselectedItemColor: AppColors.textSecondary,
-          selectedFontSize: 11,
-          unselectedFontSize: 11,
-          items: const [
-            BottomNavigationBarItem(
-              icon: Icon(Icons.point_of_sale_rounded),
-              label: 'Kasir',
-            ),
-            BottomNavigationBarItem(
-              icon: Icon(Icons.receipt_long_rounded),
-              label: 'Transaksi',
-            ),
-            BottomNavigationBarItem(
-              icon: Icon(Icons.inventory_2_rounded),
-              label: 'Produk/Stok',
-            ),
-            BottomNavigationBarItem(
-              icon: Icon(Icons.print_rounded),
-              label: 'Printer',
-            ),
-            BottomNavigationBarItem(
-              icon: Icon(Icons.storefront_rounded),
-              label: 'Toko',
-            ),
-          ],
+      bottomNavigationBar: SafeArea(
+        top: false,
+        left: false,
+        right: false,
+        bottom: true,
+        child: Container(
+          decoration: const BoxDecoration(
+            color: Colors.white,
+            border: Border(top: BorderSide(color: AppColors.border, width: 1)),
+          ),
+          child: BottomNavigationBar(
+            currentIndex: _currentIndex,
+            onTap: (index) => setState(() => _currentIndex = index),
+            type: BottomNavigationBarType.fixed,
+            backgroundColor: Colors.white,
+            elevation: 8,
+            selectedItemColor: AppColors.primary,
+            unselectedItemColor: AppColors.textSecondary,
+            selectedFontSize: 11,
+            unselectedFontSize: 11,
+            items: const [
+              BottomNavigationBarItem(
+                icon: Icon(Icons.point_of_sale_rounded),
+                label: 'Kasir',
+              ),
+              BottomNavigationBarItem(
+                icon: Icon(Icons.receipt_long_rounded),
+                label: 'Transaksi',
+              ),
+              BottomNavigationBarItem(
+                icon: Icon(Icons.inventory_2_rounded),
+                label: 'Produk/Stok',
+              ),
+              BottomNavigationBarItem(
+                icon: Icon(Icons.print_rounded),
+                label: 'Printer',
+              ),
+              BottomNavigationBarItem(
+                icon: Icon(Icons.storefront_rounded),
+                label: 'Toko',
+              ),
+            ],
+          ),
         ),
       ),
     );

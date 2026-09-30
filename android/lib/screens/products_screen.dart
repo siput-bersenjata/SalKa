@@ -188,15 +188,27 @@ class _ProductsScreenState extends State<ProductsScreen> {
                   ? null
                   : () async {
                       final name = nameController.text.trim();
-                      final price = double.tryParse(priceController.text) ?? 0.0;
-                      final costPrice = double.tryParse(costPriceController.text) ?? 0.0;
-                      final stock = int.tryParse(stockController.text) ?? 0;
-                      final minStock = int.tryParse(minStockController.text) ?? 5;
+                      final priceText = priceController.text.trim();
+                      final costPriceText = costPriceController.text.trim();
+                      final stockText = stockController.text.trim();
+                      final minStockText = minStockController.text.trim();
+
+                      final price = double.tryParse(priceText) ?? 0.0;
+                      final costPrice = costPriceText.isNotEmpty ? (double.tryParse(costPriceText) ?? 0.0) : 0.0;
+                      final stock = stockText.isNotEmpty ? (int.tryParse(stockText) ?? 0) : 0;
+                      final minStock = minStockText.isNotEmpty ? (int.tryParse(minStockText) ?? 5) : 5;
                       final barcode = barcodeController.text.trim().isNotEmpty ? barcodeController.text.trim() : null;
 
-                      if (name.isEmpty || price <= 0) {
+                      if (name.isEmpty) {
                         ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text('Nama dan harga jual wajib diisi!')),
+                          const SnackBar(content: Text('Nama menu/produk wajib diisi!')),
+                        );
+                        return;
+                      }
+
+                      if (price <= 0) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text('Harga jual harus berupa nominal lebih dari 0!')),
                         );
                         return;
                       }
@@ -214,13 +226,23 @@ class _ProductsScreenState extends State<ProductsScreen> {
                           'categoryId': selectedCategory,
                         };
 
-                        if (isEdit) {
-                          await widget.apiService.updateProduct(existingProduct.id, payload);
-                        } else {
-                          await widget.apiService.addProduct(payload);
-                        }
+                        final res = isEdit
+                            ? await widget.apiService.updateProduct(existingProduct.id, payload)
+                            : await widget.apiService.addProduct(payload);
 
                         if (!mounted) return;
+
+                        if (res['statusCode'] != 200 && res['statusCode'] != 201) {
+                          setDialogState(() => isSubmitting = false);
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text(res['error'] ?? 'Gagal menyimpan produk'),
+                              backgroundColor: AppColors.error,
+                            ),
+                          );
+                          return;
+                        }
+
                         Navigator.pop(dialogCtx);
                         _loadData();
                         ScaffoldMessenger.of(context).showSnackBar(
@@ -231,6 +253,7 @@ class _ProductsScreenState extends State<ProductsScreen> {
                         );
                       } catch (e) {
                         if (mounted) {
+                          setDialogState(() => isSubmitting = false);
                           ScaffoldMessenger.of(context).showSnackBar(
                             SnackBar(content: Text('Gagal menyimpan: $e'), backgroundColor: AppColors.error),
                           );

@@ -30,18 +30,31 @@ class Product {
   bool get isLowStock => stock <= minStock;
 
   factory Product.fromJson(Map<String, dynamic> json) {
+    double parseDouble(dynamic val) {
+      if (val == null) return 0.0;
+      if (val is num) return val.toDouble();
+      return double.tryParse(val.toString()) ?? 0.0;
+    }
+
+    int parseInt(dynamic val, int fallback) {
+      if (val == null) return fallback;
+      if (val is int) return val;
+      if (val is num) return val.toInt();
+      return int.tryParse(val.toString()) ?? fallback;
+    }
+
     return Product(
-      id: json['id'] ?? '',
-      name: json['name'] ?? '',
-      description: json['description'],
-      price: (json['price'] is num) ? (json['price'] as num).toDouble() : 0.0,
-      costPrice: (json['costPrice'] is num) ? (json['costPrice'] as num).toDouble() : 0.0,
-      stock: json['stock'] is int ? json['stock'] : (json['stock'] != null ? int.tryParse(json['stock'].toString()) ?? 0 : 0),
-      minStock: json['minStock'] is int ? json['minStock'] : (json['minStock'] != null ? int.tryParse(json['minStock'].toString()) ?? 5 : 5),
-      barcode: json['barcode'],
-      imageUrl: json['imageUrl'],
-      categoryId: json['categoryId'],
-      categoryName: json['category'] != null ? json['category']['name'] : null,
+      id: json['id']?.toString() ?? '',
+      name: json['name']?.toString() ?? '',
+      description: json['description']?.toString(),
+      price: parseDouble(json['price']),
+      costPrice: parseDouble(json['costPrice']),
+      stock: parseInt(json['stock'], 0),
+      minStock: parseInt(json['minStock'], 5),
+      barcode: json['barcode']?.toString(),
+      imageUrl: json['imageUrl']?.toString(),
+      categoryId: json['categoryId']?.toString(),
+      categoryName: json['category'] != null ? json['category']['name']?.toString() : null,
       isActive: json['isActive'] ?? true,
     );
   }
