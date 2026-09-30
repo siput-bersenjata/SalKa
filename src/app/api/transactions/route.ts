@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { getUserFromRequest } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { evaluateAccountTrial } from "@/lib/trial";
+import { applyMirroring } from "@/lib/mirroring";
 import { PaymentMethod, Role } from "@prisma/client";
 
 export async function GET(request: Request) {
@@ -39,6 +40,47 @@ export async function GET(request: Request) {
       }
     }
 
+    // Check if user is a MIRRORING account
+    if (payload.role === Role.MIRRORING) {
+      const user = await prisma.user.findUnique({
+        where: { id: payload.userId },
+        select: { mirrorPercentage: true, mirrorPrefix: true },
+      });
+
+      const percentage = user?.mirrorPercentage ?? payload.mirrorPercentage ?? 100;
+      const prefix = user?.mirrorPrefix ?? payload.mirrorPrefix ?? "TRX";
+
+      // Fetch all transactions chronologically
+      const allTrx = await prisma.transaction.findMany({
+        where: whereClause,
+        include: {
+          items: true,
+          store: {
+            select: { name: true, phone: true },
+          },
+        },
+        orderBy: { createdAt: "asc" },
+      });
+
+      // Apply mirroring sampling and sequential numbering
+      const mirroredAll = applyMirroring(allTrx, percentage, prefix);
+      const totalCount = mirroredAll.length;
+
+      // Reverse for newest first display
+      const reversed = [...mirroredAll].reverse();
+      const paginatedTransactions = reversed.slice((page - 1) * limit, page * limit);
+
+      return NextResponse.json({
+        transactions: paginatedTransactions,
+        pagination: {
+          total: totalCount,
+          page,
+          limit,
+          totalPages: Math.ceil(totalCount / limit) || 1,
+        },
+      });
+    }
+
     const [totalCount, transactions] = await Promise.all([
       prisma.transaction.count({ where: whereClause }),
       prisma.transaction.findMany({
@@ -74,15 +116,26 @@ export async function POST(request: Request) {
     const payload = getUserFromRequest(request);
     if (!payload) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
+    if (payload.role === Role.MIRRORING) {
+      return NextResponse.json(
+        { error: "Akun data mirroring hanya memiliki akses melihat laporan transaksi." },
+        { status: 403 }
+      );
+    }
+
     // Verify trial expiration
-    const user = await prisma.user.findUnique({ where: { id: payload.userId } });
+    const user = await prisma.user.findUnique({
+      where: { id: payload.userId },
+      include: { owner: true },
+    });
     if (!user) return NextResponse.json({ error: "User not found" }, { status: 404 });
 
-    const trial = evaluateAccountTrial(user);
+    const effectiveOwner = user.owner || user;
+    const trial = evaluateAccountTrial(effectiveOwner);
     if (trial.isExpired) {
       return NextResponse.json(
         {
-          error: "Masa aktif akun Anda telah berakhir. Anda tidak dapat melakukan transaksi kasir baru. Silakan hubungi Admin untuk perpanjangan masa aktif.",
+          error: "Masa aktif akun toko telah berakhir. Anda tidak dapat melakukan transaksi kasir baru. Silakan hubungi Owner atau Admin untuk perpanjangan masa aktif.",
           isExpired: true,
         },
         { status: 403 }

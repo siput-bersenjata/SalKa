@@ -11,7 +11,9 @@ generator client {
 enum Role {
   SUPER_ADMIN
   STORE_OWNER
+  MANAGER
   CASHIER
+  MIRRORING
 }
 
 enum AccountStatus {
@@ -41,7 +43,22 @@ model User {
   createdAt         DateTime       @default(now())
   updatedAt         DateTime       @updatedAt
 
-  stores            Store[]
+  stores            Store[]        @relation("StoreOwner")
+
+  // Relasi jika user ini adalah staf / kasir / manager / akun mirroring yang dibuat oleh owner
+  ownerId           String?
+  owner             User?          @relation("OwnerStaff", fields: [ownerId], references: [id], onDelete: Cascade)
+  staffUsers        User[]         @relation("OwnerStaff")
+
+  assignedStoreId   String?
+  assignedStore     Store?         @relation("StoreStaff", fields: [assignedStoreId], references: [id], onDelete: Cascade)
+
+  // Pengaturan Hak Akses (JSON stringified)
+  permissions       String?
+
+  // Pengaturan Akun Data Mirroring:
+  mirrorPercentage  Int?           @default(100) // 1 - 100%
+  mirrorPrefix      String?        @default("TRX") // Prefix nomor faktur mirroring
 
   @@map("users")
 }
@@ -49,7 +66,7 @@ model User {
 model Store {
   id              String           @id @default(cuid())
   userId          String
-  user            User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user            User             @relation("StoreOwner", fields: [userId], references: [id], onDelete: Cascade)
   name            String           @default("Toko Sumber Rejeki")
   address         String?
   phone           String?
@@ -62,6 +79,7 @@ model Store {
   categories      Category[]
   products        Product[]
   transactions    Transaction[]
+  staff           User[]           @relation("StoreStaff")
 
   @@map("stores")
 }

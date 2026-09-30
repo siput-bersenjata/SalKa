@@ -42,6 +42,14 @@ export default function PengaturanPage() {
 
         if (meRes.ok) {
           const meData = await meRes.json();
+          if (meData.user?.role === "MIRRORING") {
+            window.location.href = "/laporan";
+            return;
+          }
+          if (meData.user?.role === "CASHIER" && !meData.user?.permissions?.canManageStore) {
+            window.location.href = "/laporan";
+            return;
+          }
           setCurrentUser(meData.user);
           setTrial(meData.trial);
         }

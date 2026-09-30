@@ -17,6 +17,12 @@ export async function GET(request: Request) {
       where: { id: payload.userId },
       include: {
         stores: true,
+        assignedStore: true,
+        owner: {
+          include: {
+            stores: true,
+          },
+        },
       },
     });
 
@@ -27,8 +33,16 @@ export async function GET(request: Request) {
       );
     }
 
-    const store = user.stores[0] || null;
-    const trial = evaluateAccountTrial(user);
+    const store = user.stores[0] || user.assignedStore || user.owner?.stores[0] || null;
+    const effectiveOwner = user.owner || user;
+    const trial = evaluateAccountTrial(effectiveOwner);
+
+    let parsedPermissions = null;
+    if (user.permissions) {
+      try {
+        parsedPermissions = JSON.parse(user.permissions);
+      } catch (_) {}
+    }
 
     return NextResponse.json({
       user: {
@@ -38,6 +52,9 @@ export async function GET(request: Request) {
         phone: user.phone,
         role: user.role,
         accountStatus: user.accountStatus,
+        permissions: parsedPermissions,
+        mirrorPercentage: user.mirrorPercentage ?? 100,
+        mirrorPrefix: user.mirrorPrefix ?? "TRX",
         createdAt: user.createdAt,
       },
       store,

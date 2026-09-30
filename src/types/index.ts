@@ -1,11 +1,23 @@
 import { Role, AccountStatus, PaymentMethod } from "@prisma/client";
 
+export interface StaffPermissions {
+  canViewReports?: boolean;
+  canManageProducts?: boolean;
+  canManageSettings?: boolean;
+  canVoidTransaction?: boolean;
+  canApplyDiscounts?: boolean;
+}
+
 export interface UserJWTPayload {
   userId: string;
   username: string;
   role: Role;
   storeId?: string;
   storeName?: string;
+  ownerId?: string;
+  permissions?: StaffPermissions | null;
+  mirrorPercentage?: number;
+  mirrorPrefix?: string;
 }
 
 export interface TrialStatusResult {

@@ -23,6 +23,14 @@ export async function POST(request: Request) {
         stores: {
           take: 1,
         },
+        assignedStore: true,
+        owner: {
+          include: {
+            stores: {
+              take: 1,
+            },
+          },
+        },
       },
     });
 
@@ -41,8 +49,19 @@ export async function POST(request: Request) {
       );
     }
 
-    const store = user.stores[0] || null;
-    const trial = evaluateAccountTrial(user);
+    // Resolve store: store owned, or assigned store, or owner's store
+    const store = user.stores[0] || user.assignedStore || user.owner?.stores[0] || null;
+
+    // Evaluate trial status based on the owner if this is a staff account
+    const effectiveOwner = user.owner || user;
+    const trial = evaluateAccountTrial(effectiveOwner);
+
+    let parsedPermissions = null;
+    if (user.permissions) {
+      try {
+        parsedPermissions = JSON.parse(user.permissions);
+      } catch (_) {}
+    }
 
     const token = signToken({
       userId: user.id,
@@ -50,6 +69,10 @@ export async function POST(request: Request) {
       role: user.role,
       storeId: store?.id,
       storeName: store?.name,
+      ownerId: user.ownerId || undefined,
+      permissions: parsedPermissions,
+      mirrorPercentage: user.mirrorPercentage ?? 100,
+      mirrorPrefix: user.mirrorPrefix ?? "TRX",
     });
 
     const response = NextResponse.json({
@@ -61,6 +84,9 @@ export async function POST(request: Request) {
         fullName: user.fullName,
         phone: user.phone,
         role: user.role,
+        permissions: parsedPermissions,
+        mirrorPercentage: user.mirrorPercentage ?? 100,
+        mirrorPrefix: user.mirrorPrefix ?? "TRX",
       },
       store,
       trial,

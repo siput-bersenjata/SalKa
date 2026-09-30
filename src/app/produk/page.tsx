@@ -47,6 +47,10 @@ export default function ProdukPage() {
       const authRes = await fetch("/api/auth/me");
       if (authRes.ok) {
         const authData = await authRes.json();
+        if (authData.user?.role === "MIRRORING") {
+          window.location.href = "/laporan";
+          return;
+        }
         setCurrentUser(authData.user);
         setTrial(authData.trial);
       }

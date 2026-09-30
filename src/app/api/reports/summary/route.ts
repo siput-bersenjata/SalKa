@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getUserFromRequest } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { applyMirroring } from "@/lib/mirroring";
 import { Role } from "@prisma/client";
 
 export const dynamic = "force-dynamic";
@@ -21,6 +22,139 @@ export async function GET(request: Request) {
         : payload.storeId;
 
     const whereStore: any = storeId ? { storeId } : {};
+
+    // Check if user is a MIRRORING account
+    if (payload.role === Role.MIRRORING) {
+      const user = await prisma.user.findUnique({
+        where: { id: payload.userId },
+        select: { mirrorPercentage: true, mirrorPrefix: true },
+      });
+
+      const percentage = user?.mirrorPercentage ?? payload.mirrorPercentage ?? 100;
+      const prefix = user?.mirrorPrefix ?? payload.mirrorPrefix ?? "TRX";
+
+      const allTrx = await prisma.transaction.findMany({
+        where: whereStore,
+        include: {
+          items: {
+            include: {
+              product: {
+                include: { category: true },
+              },
+            },
+          },
+          store: { select: { name: true } },
+        },
+        orderBy: { createdAt: "asc" },
+      });
+
+      const mirrored = applyMirroring(allTrx, percentage, prefix);
+
+      const totalTransactions = mirrored.length;
+      let totalRevenue = 0;
+      let totalItemsSold = 0;
+
+      const now = new Date();
+      const sevenDaysAgo = new Date();
+      sevenDaysAgo.setDate(now.getDate() - 6);
+      sevenDaysAgo.setHours(0, 0, 0, 0);
+
+      const daysMap = new Map<string, { date: string; label: string; total: number; count: number }>();
+      for (let i = 6; i >= 0; i--) {
+        const d = new Date();
+        d.setDate(now.getDate() - i);
+        const key = d.toISOString().slice(0, 10);
+        const label = d.toLocaleDateString("id-ID", { day: "numeric", month: "short" });
+        daysMap.set(key, { date: key, label, total: 0, count: 0 });
+      }
+
+      const paymentMethodsMap: Record<string, number> = {
+        CASH: 0,
+        QRIS: 0,
+        DEBIT_CREDIT: 0,
+      };
+
+      const categorySalesMap: Record<string, number> = {};
+      const productSalesMap: Record<string, { name: string; price: number; quantity: number }> = {};
+
+      for (const t of mirrored) {
+        totalRevenue += t.totalAmount;
+
+        const isRecent = t.createdAt >= sevenDaysAgo;
+        if (isRecent) {
+          const key = t.createdAt.toISOString().slice(0, 10);
+          if (daysMap.has(key)) {
+            const dayItem = daysMap.get(key)!;
+            dayItem.total += t.totalAmount;
+            dayItem.count += 1;
+          }
+        }
+
+        if (paymentMethodsMap[t.paymentMethod] !== undefined) {
+          paymentMethodsMap[t.paymentMethod] += t.totalAmount;
+        }
+
+        if (t.items) {
+          for (const item of t.items) {
+            totalItemsSold += item.quantity;
+
+            const catName = item.product?.category?.name || "Lainnya";
+            categorySalesMap[catName] = (categorySalesMap[catName] || 0) + item.subtotal;
+
+            if (!productSalesMap[item.productName]) {
+              productSalesMap[item.productName] = { name: item.productName, price: item.price, quantity: 0 };
+            }
+            productSalesMap[item.productName].quantity += item.quantity;
+          }
+        }
+      }
+
+      const salesTrend = Array.from(daysMap.values());
+      const categoryDistribution = Object.entries(categorySalesMap).map(([name, value]) => ({
+        name,
+        value,
+      }));
+
+      if (categoryDistribution.length === 0) {
+        categoryDistribution.push(
+          { name: "Minuman", value: 38 },
+          { name: "Makanan", value: 27 },
+          { name: "Snack", value: 15 },
+          { name: "Lainnya", value: 20 }
+        );
+      }
+
+      const recentTransactions = [...mirrored].reverse().slice(0, 5);
+
+      const topProducts = Object.values(productSalesMap)
+        .sort((a, b) => b.quantity - a.quantity)
+        .slice(0, 5)
+        .map((p) => ({
+          id: p.name,
+          name: p.name,
+          price: p.price,
+          stock: 99,
+          minStock: 5,
+        }));
+
+      return NextResponse.json({
+        summary: {
+          totalTransactions,
+          totalRevenue,
+          totalItemsSold,
+          lowStockCount: 0,
+          totalProducts: Object.keys(productSalesMap).length,
+        },
+        salesTrend,
+        categoryDistribution,
+        paymentMethods: paymentMethodsMap,
+        lowStockProducts: [],
+        recentTransactions,
+        topProducts,
+        isMirroring: true,
+        mirrorPercentage: percentage,
+      });
+    }
 
     // 1. Basic aggregates
     // Fetch basic aggregates first

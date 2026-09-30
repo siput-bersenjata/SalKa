@@ -44,12 +44,14 @@ class _LoginScreenState extends State<LoginScreen> {
 
       if (res['statusCode'] == 200) {
         final user = res['user'];
-        if (user != null && (user['role'] == 'SUPER_ADMIN' || user['role'] == 'ADMIN')) {
+        if (user != null && (user['role'] == 'SUPER_ADMIN' || user['role'] == 'ADMIN' || user['role'] == 'MIRRORING')) {
           await widget.apiService.clearToken();
           if (!mounted) return;
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Aplikasi kasir ini khusus untuk akun Kasir/Toko. Akun Admin tidak dapat masuk.'),
+            SnackBar(
+              content: Text(user['role'] == 'MIRRORING'
+                  ? 'Akun Laporan Mirroring hanya dapat dibuka di website backoffice.'
+                  : 'Aplikasi kasir ini khusus untuk akun Kasir/Toko. Akun Admin tidak dapat masuk.'),
               backgroundColor: AppColors.error,
             ),
           );

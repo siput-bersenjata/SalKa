@@ -105,6 +105,19 @@ function TransaksiPageContent() {
             </div>
           </div>
 
+          {currentUser?.role === "MIRRORING" && (
+            <div className="bg-amber-50 border border-amber-200 text-amber-900 px-4 py-3 rounded-2xl flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs">
+              <div className="flex items-center space-x-2">
+                <span className="w-2 h-2 rounded-full bg-amber-500 animate-pulse"></span>
+                <span className="font-semibold">Mode Riwayat Transaksi Khusus (Urut)</span>
+                <span className="text-amber-700 hidden sm:inline">— Menampilkan transaksi terpilih dengan nomor invoice berurutan tanpa celah.</span>
+              </div>
+              <span className="font-mono bg-amber-100 text-amber-800 px-2.5 py-0.5 rounded-lg text-[11px] font-bold self-start sm:self-auto">
+                AKUN LAPORAN
+              </span>
+            </div>
+          )}
+
           {/* Transactions List Table */}
           <div className="bg-white rounded-2xl border border-slate-200/80 shadow-sm overflow-hidden">
             <div className="p-4 border-b border-slate-100 flex items-center justify-between text-xs text-slate-500 font-medium">

@@ -34,45 +34,78 @@ export default function Sidebar({ userRole, storeName }: SidebarProps) {
     }
   };
 
-  const menuItems = [
-    {
-      title: "Dashboard",
-      href: "/",
-      icon: LayoutDashboard,
-      hasArrow: false,
-    },
-    {
-      title: "Transaksi",
-      href: "/transaksi",
-      icon: Receipt,
-      hasArrow: true,
-    },
-    {
-      title: "Produk & Stok",
-      href: "/produk",
-      icon: Boxes,
-      hasArrow: true,
-    },
-    {
-      title: "Laporan",
-      href: "/laporan",
-      icon: BarChart3,
-      hasArrow: false,
-    },
-    {
-      title: userRole === "SUPER_ADMIN" ? "Manajemen Akun" : "Pelanggan",
-      href: userRole === "SUPER_ADMIN" ? "/admin/users" : "/pelanggan",
-      icon: userRole === "SUPER_ADMIN" ? ShieldCheck : Users2,
-      hasArrow: false,
-      badge: userRole === "SUPER_ADMIN" ? "Admin" : undefined,
-    },
-    {
-      title: "Pengaturan",
-      href: "/pengaturan",
-      icon: Settings,
-      hasArrow: false,
-    },
-  ];
+  // Restrict menus for MIRRORING role (reports and transactions only)
+  let menuItems: any[] = [];
+
+  if (userRole === "MIRRORING") {
+    menuItems = [
+      {
+        title: "Laporan Mirroring",
+        href: "/laporan",
+        icon: BarChart3,
+        hasArrow: false,
+        badge: "Data",
+      },
+      {
+        title: "Riwayat Transaksi",
+        href: "/transaksi",
+        icon: Receipt,
+        hasArrow: true,
+      },
+    ];
+  } else {
+    menuItems = [
+      {
+        title: "Dashboard",
+        href: "/",
+        icon: LayoutDashboard,
+        hasArrow: false,
+      },
+      {
+        title: "Transaksi",
+        href: "/transaksi",
+        icon: Receipt,
+        hasArrow: true,
+      },
+      {
+        title: "Produk & Stok",
+        href: "/produk",
+        icon: Boxes,
+        hasArrow: true,
+      },
+      {
+        title: "Laporan",
+        href: "/laporan",
+        icon: BarChart3,
+        hasArrow: false,
+      },
+      ...(userRole === "SUPER_ADMIN"
+        ? [
+            {
+              title: "Manajemen Akun",
+              href: "/admin/users",
+              icon: ShieldCheck,
+              hasArrow: false,
+              badge: "Admin",
+            },
+          ]
+        : [
+            {
+              title: "Karyawan & Akses",
+              href: "/karyawan",
+              icon: Users2,
+              hasArrow: true,
+              badge: "Staff",
+            },
+          ]),
+      {
+        title: "Pengaturan",
+        href: "/pengaturan",
+        icon: Settings,
+        hasArrow: false,
+      },
+    ];
+  }
 
   return (
     <aside className="w-64 bg-[#0F172A] text-slate-300 flex flex-col justify-between shrink-0 min-h-screen border-r border-slate-800">

@@ -31,6 +31,11 @@ export default function DashboardPage() {
         }
 
         const authData = await authRes.json();
+        if (authData.user?.role === "MIRRORING") {
+          router.push("/laporan");
+          return;
+        }
+
         setUser(authData.user);
         setStore(authData.store);
         setTrial(authData.trial);
