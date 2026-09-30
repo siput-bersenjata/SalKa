@@ -40,3 +40,10 @@ prisma/*.db-journal
 
 .vercel
 .env*
+
+# Android App
+android/build/
+android/.dart_tool/
+android/android/.gradle/
+android/android/app/build/
+salka_screen.png

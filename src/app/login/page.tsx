@@ -43,11 +43,6 @@ export default function LoginPage() {
     }
   };
 
-  const setDemoAdmin = () => {
-    setUsername("admin");
-    setPassword("admin123");
-  };
-
   const setDemoKasir = () => {
     setUsername("kasir1");
     setPassword("kasir123");
@@ -124,27 +119,19 @@ export default function LoginPage() {
           </button>
         </form>
 
-        {/* Demo Fast Login Pills */}
+        {/* Demo Fast Login Pill for Cashier */}
         <div className="pt-2 border-t border-slate-100">
           <p className="text-[11px] text-center font-semibold text-slate-400 mb-2">
             AKUN DEMO CEPAT (KLIK UNTUK ISI):
           </p>
-          <div className="grid grid-cols-2 gap-2">
-            <button
-              type="button"
-              onClick={setDemoAdmin}
-              className="py-1.5 px-3 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-xs font-semibold text-center transition-colors"
-            >
-              👑 Super Admin
-            </button>
-            <button
-              type="button"
-              onClick={setDemoKasir}
-              className="py-1.5 px-3 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-xs font-semibold text-center transition-colors"
-            >
-              🏪 Kasir Demo
-            </button>
-          </div>
+          <button
+            type="button"
+            onClick={setDemoKasir}
+            className="w-full py-2 px-3 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-xs font-semibold text-center transition-colors flex items-center justify-center space-x-1.5"
+          >
+            <span>🏪</span>
+            <span>Kasir Demo (Otomatis Terisi)</span>
+          </button>
         </div>
 
         {/* Register link */}
