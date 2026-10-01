@@ -33,6 +33,8 @@ export async function GET(request: Request) {
         permissions: true,
         mirrorPercentage: true,
         mirrorPrefix: true,
+        hideTransactionId: true,
+        dateRangeLimit: true,
         createdAt: true,
         updatedAt: true,
       },
@@ -41,6 +43,8 @@ export async function GET(request: Request) {
 
     const parsedList = staffList.map((s) => ({
       ...s,
+      hideTransactionId: s.hideTransactionId ?? false,
+      dateRangeLimit: s.dateRangeLimit ?? "ALL",
       permissions: s.permissions ? JSON.parse(s.permissions) : null,
     }));
 
@@ -74,6 +78,8 @@ export async function POST(request: Request) {
       permissions,
       mirrorPercentage = 100,
       mirrorPrefix = "TRX",
+      hideTransactionId = false,
+      dateRangeLimit = "ALL",
     } = body;
 
     if (!username || !password) {
@@ -181,6 +187,8 @@ export async function POST(request: Request) {
         permissions: permissionsJson,
         mirrorPercentage: assignedRole === Role.MIRRORING ? validPercentage : 100,
         mirrorPrefix: mirrorPrefix?.trim().toUpperCase() || "TRX",
+        hideTransactionId: Boolean(hideTransactionId),
+        dateRangeLimit: ["ALL", "THIS_MONTH", "1_MONTH", "2_MONTH"].includes(dateRangeLimit) ? dateRangeLimit : "ALL",
       },
       select: {
         id: true,
@@ -192,6 +200,8 @@ export async function POST(request: Request) {
         permissions: true,
         mirrorPercentage: true,
         mirrorPrefix: true,
+        hideTransactionId: true,
+        dateRangeLimit: true,
         createdAt: true,
       },
     });
@@ -200,6 +210,8 @@ export async function POST(request: Request) {
       message: `Akun ${assignedRole === Role.MIRRORING ? "data mirroring" : assignedRole.toLowerCase()} berhasil dibuat.`,
       staff: {
         ...newStaff,
+        hideTransactionId: newStaff.hideTransactionId ?? false,
+        dateRangeLimit: newStaff.dateRangeLimit ?? "ALL",
         permissions: newStaff.permissions ? JSON.parse(newStaff.permissions) : null,
       },
     });

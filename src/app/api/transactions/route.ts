@@ -40,15 +40,58 @@ export async function GET(request: Request) {
       }
     }
 
+    // Fetch user settings for access restrictions
+    const userSettings = await prisma.user.findUnique({
+      where: { id: payload.userId },
+      select: {
+        role: true,
+        mirrorPercentage: true,
+        mirrorPrefix: true,
+        hideTransactionId: true,
+        dateRangeLimit: true,
+      },
+    });
+
+    const hideTransactionId = userSettings?.hideTransactionId ?? payload.hideTransactionId ?? false;
+    const dateRangeLimit = userSettings?.dateRangeLimit ?? payload.dateRangeLimit ?? "ALL";
+
+    // Enforce dateRangeLimit if restricted
+    if (dateRangeLimit && dateRangeLimit !== "ALL") {
+      const now = new Date();
+      if (!whereClause.createdAt) whereClause.createdAt = {};
+
+      if (dateRangeLimit === "THIS_MONTH") {
+        const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1, 0, 0, 0, 0);
+        if (!whereClause.createdAt.gte || whereClause.createdAt.gte < startOfMonth) {
+          whereClause.createdAt.gte = startOfMonth;
+        }
+      } else if (dateRangeLimit === "1_MONTH") {
+        const oneMonthAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+        oneMonthAgo.setHours(0, 0, 0, 0);
+        if (!whereClause.createdAt.gte || whereClause.createdAt.gte < oneMonthAgo) {
+          whereClause.createdAt.gte = oneMonthAgo;
+        }
+      } else if (dateRangeLimit === "2_MONTH") {
+        const twoMonthsAgo = new Date(now.getTime() - 60 * 24 * 60 * 60 * 1000);
+        twoMonthsAgo.setHours(0, 0, 0, 0);
+        if (!whereClause.createdAt.gte || whereClause.createdAt.gte < twoMonthsAgo) {
+          whereClause.createdAt.gte = twoMonthsAgo;
+        }
+      }
+    }
+
+    const formatTrxList = (list: any[]) => {
+      return list.map((t) => ({
+        ...t,
+        invoiceNumber: hideTransactionId ? "" : t.invoiceNumber,
+        hideInvoice: hideTransactionId,
+      }));
+    };
+
     // Check if user is a MIRRORING account
     if (payload.role === Role.MIRRORING) {
-      const user = await prisma.user.findUnique({
-        where: { id: payload.userId },
-        select: { mirrorPercentage: true, mirrorPrefix: true },
-      });
-
-      const percentage = user?.mirrorPercentage ?? payload.mirrorPercentage ?? 100;
-      const prefix = user?.mirrorPrefix ?? payload.mirrorPrefix ?? "TRX";
+      const percentage = userSettings?.mirrorPercentage ?? payload.mirrorPercentage ?? 100;
+      const prefix = userSettings?.mirrorPrefix ?? payload.mirrorPrefix ?? "TRX";
 
       // Fetch all transactions chronologically
       const allTrx = await prisma.transaction.findMany({
@@ -56,7 +99,7 @@ export async function GET(request: Request) {
         include: {
           items: true,
           store: {
-            select: { name: true, phone: true },
+            select: { name: true, phone: true, hideInvoiceOnReceipt: true },
           },
         },
         orderBy: { createdAt: "asc" },
@@ -71,7 +114,9 @@ export async function GET(request: Request) {
       const paginatedTransactions = reversed.slice((page - 1) * limit, page * limit);
 
       return NextResponse.json({
-        transactions: paginatedTransactions,
+        transactions: formatTrxList(paginatedTransactions),
+        hideTransactionId,
+        dateRangeLimit,
         pagination: {
           total: totalCount,
           page,
@@ -88,7 +133,7 @@ export async function GET(request: Request) {
         include: {
           items: true,
           store: {
-            select: { name: true, phone: true },
+            select: { name: true, phone: true, hideInvoiceOnReceipt: true },
           },
         },
         orderBy: { createdAt: "desc" },
@@ -98,7 +143,9 @@ export async function GET(request: Request) {
     ]);
 
     return NextResponse.json({
-      transactions,
+      transactions: formatTrxList(transactions),
+      hideTransactionId,
+      dateRangeLimit,
       pagination: {
         total: totalCount,
         page,

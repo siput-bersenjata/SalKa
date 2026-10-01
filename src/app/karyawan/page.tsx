@@ -20,6 +20,8 @@ import {
   User,
   Sliders,
   Sparkles,
+  Calendar,
+  EyeOff,
 } from "lucide-react";
 
 interface StaffItem {
@@ -37,6 +39,8 @@ interface StaffItem {
   } | null;
   mirrorPercentage: number | null;
   mirrorPrefix: string | null;
+  hideTransactionId?: boolean;
+  dateRangeLimit?: string;
   createdAt: string;
 }
 
@@ -71,6 +75,10 @@ export default function KaryawanPage() {
   // Mirroring Settings
   const [mirrorPercentage, setMirrorPercentage] = useState<number>(50);
   const [mirrorPrefix, setMirrorPrefix] = useState<string>("TRX");
+
+  // Privacy & Access Restrictions
+  const [hideTransactionId, setHideTransactionId] = useState(false);
+  const [dateRangeLimit, setDateRangeLimit] = useState<string>("ALL");
 
   // Delete Confirm Modal
   const [deleteTarget, setDeleteTarget] = useState<StaffItem | null>(null);
@@ -136,6 +144,9 @@ export default function KaryawanPage() {
       setMirrorPrefix("TRX");
     }
 
+    setHideTransactionId(false);
+    setDateRangeLimit("ALL");
+
     setIsModalOpen(true);
   }
 
@@ -159,6 +170,9 @@ export default function KaryawanPage() {
     setMirrorPercentage(staff.mirrorPercentage || 50);
     setMirrorPrefix(staff.mirrorPrefix || "TRX");
 
+    setHideTransactionId(Boolean(staff.hideTransactionId));
+    setDateRangeLimit(staff.dateRangeLimit || "ALL");
+
     setIsModalOpen(true);
   }
 
@@ -172,6 +186,8 @@ export default function KaryawanPage() {
         fullName: fullName.trim(),
         phone: phone.trim() || null,
         role,
+        hideTransactionId,
+        dateRangeLimit,
         permissions: {
           canViewReports: role === "MIRRORING" ? true : canViewReports,
           canManageProducts: role === "MIRRORING" ? false : canManageProducts,
@@ -504,6 +520,21 @@ export default function KaryawanPage() {
                                 </span>
                               </div>
                             )}
+
+                            {(staff.hideTransactionId || (staff.dateRangeLimit && staff.dateRangeLimit !== "ALL")) && (
+                              <div className="flex flex-wrap gap-1 mt-1.5">
+                                {staff.hideTransactionId && (
+                                  <span className="px-2 py-0.5 rounded text-[10px] font-semibold bg-rose-50 text-rose-700 border border-rose-200">
+                                    ID Disembunyikan (Tgl Saja)
+                                  </span>
+                                )}
+                                {staff.dateRangeLimit && staff.dateRangeLimit !== "ALL" && (
+                                  <span className="px-2 py-0.5 rounded text-[10px] font-semibold bg-indigo-50 text-indigo-700 border border-indigo-200">
+                                    Periode: {staff.dateRangeLimit === "THIS_MONTH" ? "Bulan Ini" : staff.dateRangeLimit === "1_MONTH" ? "1 Bln Terakhir" : "2 Bln Terakhir"}
+                                  </span>
+                                )}
+                              </div>
+                            )}
                           </td>
 
                           <td className="py-4 px-4 text-slate-600">
@@ -788,6 +819,52 @@ export default function KaryawanPage() {
                   </div>
                 </div>
               )}
+
+              {/* PRIVACY & DATE RANGE RESTRICTION (For all roles) */}
+              <div className="p-4 bg-slate-50 border border-slate-200 rounded-2xl space-y-3.5">
+                <div className="flex items-center gap-2">
+                  <Shield className="w-4 h-4 text-slate-700" />
+                  <span className="font-bold text-slate-900 text-sm">Privasi & Batasan Periode Transaksi</span>
+                </div>
+
+                <div className="space-y-3">
+                  <label className="flex items-start gap-2.5 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={hideTransactionId}
+                      onChange={(e) => setHideTransactionId(e.target.checked)}
+                      className="rounded text-blue-600 focus:ring-blue-500 mt-0.5"
+                    />
+                    <div>
+                      <span className="text-slate-800 font-semibold text-xs block">
+                        Matikan Detail ID Transaksi (Hanya Tanggal Saja)
+                      </span>
+                      <span className="text-slate-500 text-[11px] leading-tight block mt-0.5">
+                        Sembunyikan nomor Invoice/ID transaksi di riwayat, nota, dan laporan. Akun ini hanya akan melihat tanggal dan jam transaksi saja.
+                      </span>
+                    </div>
+                  </label>
+
+                  <div className="pt-2 border-t border-slate-200/70">
+                    <label className="block font-semibold text-slate-800 text-xs mb-1">
+                      Batasan Periode Transaksi & Laporan
+                    </label>
+                    <select
+                      value={dateRangeLimit}
+                      onChange={(e) => setDateRangeLimit(e.target.value)}
+                      className="w-full px-3 py-2 text-xs rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+                    >
+                      <option value="ALL">Semua Waktu (Tanpa Batasan)</option>
+                      <option value="THIS_MONTH">Periode Bulan Ini Saja</option>
+                      <option value="1_MONTH">1 Bulan Terakhir (30 Hari Terakhir)</option>
+                      <option value="2_MONTH">2 Bulan Terakhir (60 Hari Terakhir)</option>
+                    </select>
+                    <span className="text-[10px] text-slate-500 mt-1 block">
+                      Membatasi akun agar hanya dapat melihat riwayat dan omset transaksi dalam rentang periode yang ditentukan.
+                    </span>
+                  </div>
+                </div>
+              </div>
 
               {/* Submit Buttons */}
               <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-100">

@@ -73,6 +73,8 @@ export async function POST(request: Request) {
       permissions: parsedPermissions,
       mirrorPercentage: user.mirrorPercentage ?? 100,
       mirrorPrefix: user.mirrorPrefix ?? "TRX",
+      hideTransactionId: user.hideTransactionId ?? false,
+      dateRangeLimit: user.dateRangeLimit ?? "ALL",
     });
 
     const response = NextResponse.json({
@@ -87,6 +89,8 @@ export async function POST(request: Request) {
         permissions: parsedPermissions,
         mirrorPercentage: user.mirrorPercentage ?? 100,
         mirrorPrefix: user.mirrorPrefix ?? "TRX",
+        hideTransactionId: user.hideTransactionId ?? false,
+        dateRangeLimit: user.dateRangeLimit ?? "ALL",
       },
       store,
       trial,

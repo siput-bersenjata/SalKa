@@ -497,7 +497,12 @@ class _PosScreenState extends State<PosScreen> {
             const SizedBox(height: 16),
             const Text('Transaksi Berhasil!', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
             const SizedBox(height: 6),
-            Text(invoiceNumber, style: const TextStyle(color: AppColors.textSecondary, fontSize: 13)),
+            Text(
+              _storeProfile?['hideInvoiceOnReceipt'] == true
+                  ? DateFormat('dd/MM/yyyy HH:mm').format(DateTime.now())
+                  : invoiceNumber,
+              style: const TextStyle(color: AppColors.textSecondary, fontSize: 13),
+            ),
             const SizedBox(height: 12),
             Text(
               'Kembalian: ${_currencyFormat.format(change)}',
@@ -514,12 +519,13 @@ class _PosScreenState extends State<PosScreen> {
                 final paperSize = _storeProfile?['receiptPaperSize'] ?? '58mm';
                 final header = _storeProfile?['receiptHeader'];
                 final footer = _storeProfile?['receiptFooter'];
+                final hideInvoice = _storeProfile?['hideInvoiceOnReceipt'] == true;
 
                 final ok = await widget.printerService.printReceipt(
                   storeName: storeName,
                   storeAddress: storeAddress,
                   storePhone: storePhone,
-                  invoiceNumber: invoiceNumber,
+                  invoiceNumber: hideInvoice ? '' : invoiceNumber,
                   dateTime: DateFormat('dd/MM/yyyy HH:mm').format(DateTime.now()),
                   cashierName: 'Kasir',
                   items: items,

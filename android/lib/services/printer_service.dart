@@ -116,7 +116,9 @@ class PrinterService {
       bytes += generator.hr(ch: '=');
 
       // ===== INVOICE INFO =====
-      bytes += generator.text('No: $invoiceNumber', styles: const PosStyles(bold: true));
+      if (invoiceNumber.trim().isNotEmpty) {
+        bytes += generator.text('No: $invoiceNumber', styles: const PosStyles(bold: true));
+      }
       bytes += generator.text('Tgl: $dateTime');
       bytes += generator.text('Kasir: $cashierName');
       bytes += generator.hr();

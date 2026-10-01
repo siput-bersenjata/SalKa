@@ -56,10 +56,13 @@ function TransaksiPageContent() {
     loadData();
   }, [storeIdParam]);
 
+  const isHideId = Boolean(currentUser?.hideTransactionId);
+
   const filteredTransactions = transactions.filter((t) => {
     const q = search.toLowerCase();
+    const matchInvoice = !isHideId && t.invoiceNumber && t.invoiceNumber.toLowerCase().includes(q);
     return (
-      t.invoiceNumber.toLowerCase().includes(q) ||
+      matchInvoice ||
       (t.cashierName && t.cashierName.toLowerCase().includes(q)) ||
       (t.customerName && t.customerName.toLowerCase().includes(q))
     );
@@ -99,24 +102,11 @@ function TransaksiPageContent() {
                 type="text"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                placeholder="Cari No. Faktur Invoice..."
+                placeholder={isHideId ? "Cari nama kasir..." : "Cari No. Faktur Invoice..."}
                 className="w-full pl-9 pr-4 py-2 bg-white border border-slate-200 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-blue-500/20"
               />
             </div>
           </div>
-
-          {currentUser?.role === "MIRRORING" && (
-            <div className="bg-amber-50 border border-amber-200 text-amber-900 px-4 py-3 rounded-2xl flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs">
-              <div className="flex items-center space-x-2">
-                <span className="w-2 h-2 rounded-full bg-amber-500 animate-pulse"></span>
-                <span className="font-semibold">Mode Riwayat Transaksi Khusus (Urut)</span>
-                <span className="text-amber-700 hidden sm:inline">— Menampilkan transaksi terpilih dengan nomor invoice berurutan tanpa celah.</span>
-              </div>
-              <span className="font-mono bg-amber-100 text-amber-800 px-2.5 py-0.5 rounded-lg text-[11px] font-bold self-start sm:self-auto">
-                AKUN LAPORAN
-              </span>
-            </div>
-          )}
 
           {/* Transactions List Table */}
           <div className="bg-white rounded-2xl border border-slate-200/80 shadow-sm overflow-hidden">
@@ -143,7 +133,7 @@ function TransaksiPageContent() {
                 <table className="w-full text-left text-xs">
                   <thead>
                     <tr className="bg-slate-50/70 border-b border-slate-200/80 text-slate-500 font-semibold uppercase tracking-wider">
-                      <th className="py-3 px-4">No. Invoice</th>
+                      <th className="py-3 px-4">{isHideId ? "Status ID" : "No. Invoice"}</th>
                       <th className="py-3 px-4">Tanggal & Waktu</th>
                       <th className="py-3 px-4">Toko</th>
                       <th className="py-3 px-4">Metode Bayar</th>
@@ -177,7 +167,13 @@ function TransaksiPageContent() {
                       return (
                         <tr key={trx.id} className="hover:bg-slate-50/70 transition-colors">
                           <td className="py-3.5 px-4 font-mono font-bold text-slate-800">
-                            {trx.invoiceNumber}
+                            {isHideId ? (
+                              <span className="text-slate-400 font-sans text-xs italic font-normal">
+                                (ID Dinonaktifkan)
+                              </span>
+                            ) : (
+                              trx.invoiceNumber
+                            )}
                           </td>
                           <td className="py-3.5 px-4 text-slate-500">
                             {dateStr} <span className="text-slate-400 text-[11px]">{timeStr}</span>
@@ -245,14 +241,28 @@ function TransaksiPageContent() {
 
               {/* Info Faktur */}
               <div className="space-y-0.5 text-[10px] text-slate-600">
-                <div className="flex justify-between">
-                  <span>No: {selectedTrx.invoiceNumber}</span>
-                  <span>{new Date(selectedTrx.createdAt).toLocaleDateString("id-ID")}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span>Kasir: {selectedTrx.cashierName || "Kasir"}</span>
-                  <span>{new Date(selectedTrx.createdAt).toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" })}</span>
-                </div>
+                {(isHideId || selectedTrx.store?.hideInvoiceOnReceipt) ? (
+                  <>
+                    <div className="flex justify-between">
+                      <span>Tanggal: {new Date(selectedTrx.createdAt).toLocaleDateString("id-ID")}</span>
+                      <span>{new Date(selectedTrx.createdAt).toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" })}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>Kasir: {selectedTrx.cashierName || "Kasir"}</span>
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <div className="flex justify-between">
+                      <span>No: {selectedTrx.invoiceNumber}</span>
+                      <span>{new Date(selectedTrx.createdAt).toLocaleDateString("id-ID")}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>Kasir: {selectedTrx.cashierName || "Kasir"}</span>
+                      <span>{new Date(selectedTrx.createdAt).toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" })}</span>
+                    </div>
+                  </>
+                )}
               </div>
 
               {/* Items List */}

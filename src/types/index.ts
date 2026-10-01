@@ -18,6 +18,8 @@ export interface UserJWTPayload {
   permissions?: StaffPermissions | null;
   mirrorPercentage?: number;
   mirrorPrefix?: string;
+  hideTransactionId?: boolean;
+  dateRangeLimit?: string;
 }
 
 export interface TrialStatusResult {
@@ -36,6 +38,7 @@ export interface StoreProfileUpdate {
   receiptHeader?: string;
   receiptFooter?: string;
   paperSize?: string;
+  hideInvoiceOnReceipt?: boolean;
 }
 
 export interface CartItemInput {

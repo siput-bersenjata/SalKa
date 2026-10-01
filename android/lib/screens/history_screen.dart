@@ -168,6 +168,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
               final paperSize = _storeProfile?['receiptPaperSize'] ?? '58mm';
               final header = _storeProfile?['receiptHeader'];
               final footer = _storeProfile?['receiptFooter'];
+              final hideInvoice = _storeProfile?['hideInvoiceOnReceipt'] == true;
 
               final itemsPayload = tx.items.map((it) => {
                 'productName': it.productName,
@@ -180,7 +181,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
                 storeName: storeName,
                 storeAddress: storeAddress,
                 storePhone: storePhone,
-                invoiceNumber: tx.invoiceNumber,
+                invoiceNumber: hideInvoice ? '' : tx.invoiceNumber,
                 dateTime: DateFormat('dd/MM/yyyy HH:mm').format(tx.createdAt),
                 cashierName: 'Kasir',
                 items: itemsPayload,

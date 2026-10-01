@@ -42,7 +42,7 @@ export async function PUT(request: Request) {
     }
 
     const body = await request.json();
-    const { name, address, phone, receiptHeader, receiptFooter, paperSize } = body;
+    const { name, address, phone, receiptHeader, receiptFooter, paperSize, hideInvoiceOnReceipt } = body;
 
     const { searchParams } = new URL(request.url);
     const targetStoreId =
@@ -63,6 +63,7 @@ export async function PUT(request: Request) {
         ...(receiptHeader !== undefined && { receiptHeader: receiptHeader?.trim() || null }),
         ...(receiptFooter !== undefined && { receiptFooter: receiptFooter?.trim() || null }),
         ...(paperSize && { paperSize: paperSize === "80mm" ? "80mm" : "58mm" }),
+        ...(hideInvoiceOnReceipt !== undefined && { hideInvoiceOnReceipt: Boolean(hideInvoiceOnReceipt) }),
       },
     });
 

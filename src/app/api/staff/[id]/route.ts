@@ -47,6 +47,8 @@ export async function PUT(
       permissions,
       mirrorPercentage,
       mirrorPrefix,
+      hideTransactionId,
+      dateRangeLimit,
     } = body;
 
     const updateData: any = {};
@@ -74,6 +76,16 @@ export async function PUT(
       updateData.mirrorPrefix = mirrorPrefix.trim().toUpperCase() || "TRX";
     }
 
+    if (hideTransactionId !== undefined) {
+      updateData.hideTransactionId = Boolean(hideTransactionId);
+    }
+
+    if (dateRangeLimit !== undefined) {
+      updateData.dateRangeLimit = ["ALL", "THIS_MONTH", "1_MONTH", "2_MONTH"].includes(dateRangeLimit)
+        ? dateRangeLimit
+        : "ALL";
+    }
+
     const updated = await prisma.user.update({
       where: { id },
       data: updateData,
@@ -87,6 +99,8 @@ export async function PUT(
         permissions: true,
         mirrorPercentage: true,
         mirrorPrefix: true,
+        hideTransactionId: true,
+        dateRangeLimit: true,
         createdAt: true,
         updatedAt: true,
       },
@@ -96,6 +110,8 @@ export async function PUT(
       message: "Data akun berhasil diperbarui.",
       staff: {
         ...updated,
+        hideTransactionId: updated.hideTransactionId ?? false,
+        dateRangeLimit: updated.dateRangeLimit ?? "ALL",
         permissions: updated.permissions ? JSON.parse(updated.permissions) : null,
       },
     });

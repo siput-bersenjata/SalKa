@@ -55,6 +55,8 @@ export async function GET(request: Request) {
         permissions: parsedPermissions,
         mirrorPercentage: user.mirrorPercentage ?? 100,
         mirrorPrefix: user.mirrorPrefix ?? "TRX",
+        hideTransactionId: user.hideTransactionId ?? false,
+        dateRangeLimit: user.dateRangeLimit ?? "ALL",
         createdAt: user.createdAt,
       },
       store,

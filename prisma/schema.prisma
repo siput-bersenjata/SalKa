@@ -54,32 +54,35 @@ model User {
   assignedStore     Store?         @relation("StoreStaff", fields: [assignedStoreId], references: [id], onDelete: Cascade)
 
   // Pengaturan Hak Akses (JSON stringified)
-  permissions       String?
+  permissions          String?
 
-  // Pengaturan Akun Data Mirroring:
-  mirrorPercentage  Int?           @default(100) // 1 - 100%
-  mirrorPrefix      String?        @default("TRX") // Prefix nomor faktur mirroring
+  // Pengaturan Akun Data Mirroring & Pembatasan Akses:
+  mirrorPercentage     Int?           @default(100) // 1 - 100%
+  mirrorPrefix         String?        @default("TRX") // Prefix nomor faktur mirroring
+  hideTransactionId    Boolean?       @default(false) // Mematikan detail ID transaksi (hanya tanggal)
+  dateRangeLimit       String?        @default("ALL") // "ALL", "THIS_MONTH", "1_MONTH", "2_MONTH"
 
   @@map("users")
 }
 
 model Store {
-  id              String           @id @default(cuid())
-  userId          String
-  user            User             @relation("StoreOwner", fields: [userId], references: [id], onDelete: Cascade)
-  name            String           @default("Toko Sumber Rejeki")
-  address         String?
-  phone           String?
-  receiptHeader   String?          @default("Terima Kasih Atas Kunjungan Anda")
-  receiptFooter   String?          @default("Barang yang sudah dibeli tidak dapat ditukar/dikembalikan")
-  paperSize       String           @default("58mm") // 58mm atau 80mm
-  createdAt       DateTime         @default(now())
-  updatedAt       DateTime         @updatedAt
+  id                   String           @id @default(cuid())
+  userId               String
+  user                 User             @relation("StoreOwner", fields: [userId], references: [id], onDelete: Cascade)
+  name                 String           @default("Toko Sumber Rejeki")
+  address              String?
+  phone                String?
+  receiptHeader        String?          @default("Terima Kasih Atas Kunjungan Anda")
+  receiptFooter        String?          @default("Barang yang sudah dibeli tidak dapat ditukar/dikembalikan")
+  paperSize            String           @default("58mm") // 58mm atau 80mm
+  hideInvoiceOnReceipt Boolean?         @default(false) // Opsi default owner: matikan ID transaksi di nota/struk
+  createdAt            DateTime         @default(now())
+  updatedAt            DateTime         @updatedAt
 
-  categories      Category[]
-  products        Product[]
-  transactions    Transaction[]
-  staff           User[]           @relation("StoreStaff")
+  categories           Category[]
+  products             Product[]
+  transactions         Transaction[]
+  staff                User[]           @relation("StoreStaff")
 
   @@map("stores")
 }

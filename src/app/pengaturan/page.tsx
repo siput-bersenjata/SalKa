@@ -30,6 +30,7 @@ export default function PengaturanPage() {
     paperSize: "58mm",
     receiptHeader: "",
     receiptFooter: "",
+    hideInvoiceOnReceipt: false,
   });
 
   useEffect(() => {
@@ -64,6 +65,7 @@ export default function PengaturanPage() {
               paperSize: data.store.paperSize || "58mm",
               receiptHeader: data.store.receiptHeader || "Terima Kasih Atas Kunjungan Anda",
               receiptFooter: data.store.receiptFooter || "Barang yang sudah dibeli tidak dapat ditukar/dikembalikan",
+              hideInvoiceOnReceipt: Boolean(data.store.hideInvoiceOnReceipt),
             });
           }
         }
@@ -280,6 +282,26 @@ export default function PengaturanPage() {
                         className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20"
                       />
                     </div>
+
+                    {/* Matikan ID Transaksi Default di Struk */}
+                    <div className="p-4 bg-slate-50 border border-slate-200 rounded-2xl">
+                      <label className="flex items-start gap-3 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={form.hideInvoiceOnReceipt}
+                          onChange={(e) => setForm({ ...form, hideInvoiceOnReceipt: e.target.checked })}
+                          className="rounded text-blue-600 focus:ring-blue-500 mt-1"
+                        />
+                        <div>
+                          <span className="text-slate-900 font-bold text-xs block">
+                            Matikan ID Transaksi di Struk / Nota (Hanya Tampilkan Tanggal)
+                          </span>
+                          <span className="text-slate-500 text-[11px] leading-relaxed block mt-0.5">
+                            Jika diaktifkan, nomor invoice/ID transaksi tidak akan dicetak pada kertas nota (baik lewat printer thermal Bluetooth Android maupun cetak nota web). Struk hanya mencantumkan tanggal &amp; waktu transaksi.
+                          </span>
+                        </div>
+                      </label>
+                    </div>
                   </div>
 
                   <div className="pt-4 border-t border-slate-100 flex justify-end">
@@ -317,8 +339,17 @@ export default function PengaturanPage() {
                     </div>
 
                     <div className="text-[10px] text-slate-600 flex justify-between">
-                      <span>TRX-CONTOH-001</span>
-                      <span>30/09/2026</span>
+                      {form.hideInvoiceOnReceipt ? (
+                        <>
+                          <span>Tgl: 30/09/2026 14:30</span>
+                          <span className="text-slate-400 italic">(Tanpa ID)</span>
+                        </>
+                      ) : (
+                        <>
+                          <span>TRX-CONTOH-001</span>
+                          <span>30/09/2026 14:30</span>
+                        </>
+                      )}
                     </div>
 
                     <div className="border-t border-b border-dashed border-slate-300 py-2 space-y-1 text-slate-700">

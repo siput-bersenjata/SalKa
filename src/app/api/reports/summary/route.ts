@@ -23,15 +23,50 @@ export async function GET(request: Request) {
 
     const whereStore: any = storeId ? { storeId } : {};
 
+    // Fetch user settings for access restrictions
+    const userSettings = await prisma.user.findUnique({
+      where: { id: payload.userId },
+      select: {
+        role: true,
+        mirrorPercentage: true,
+        mirrorPrefix: true,
+        hideTransactionId: true,
+        dateRangeLimit: true,
+      },
+    });
+
+    const hideTransactionId = userSettings?.hideTransactionId ?? payload.hideTransactionId ?? false;
+    const dateRangeLimit = userSettings?.dateRangeLimit ?? payload.dateRangeLimit ?? "ALL";
+
+    // Enforce dateRangeLimit if restricted
+    if (dateRangeLimit && dateRangeLimit !== "ALL") {
+      const now = new Date();
+      if (!whereStore.createdAt) whereStore.createdAt = {};
+
+      if (dateRangeLimit === "THIS_MONTH") {
+        const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1, 0, 0, 0, 0);
+        if (!whereStore.createdAt.gte || whereStore.createdAt.gte < startOfMonth) {
+          whereStore.createdAt.gte = startOfMonth;
+        }
+      } else if (dateRangeLimit === "1_MONTH") {
+        const oneMonthAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+        oneMonthAgo.setHours(0, 0, 0, 0);
+        if (!whereStore.createdAt.gte || whereStore.createdAt.gte < oneMonthAgo) {
+          whereStore.createdAt.gte = oneMonthAgo;
+        }
+      } else if (dateRangeLimit === "2_MONTH") {
+        const twoMonthsAgo = new Date(now.getTime() - 60 * 24 * 60 * 60 * 1000);
+        twoMonthsAgo.setHours(0, 0, 0, 0);
+        if (!whereStore.createdAt.gte || whereStore.createdAt.gte < twoMonthsAgo) {
+          whereStore.createdAt.gte = twoMonthsAgo;
+        }
+      }
+    }
+
     // Check if user is a MIRRORING account
     if (payload.role === Role.MIRRORING) {
-      const user = await prisma.user.findUnique({
-        where: { id: payload.userId },
-        select: { mirrorPercentage: true, mirrorPrefix: true },
-      });
-
-      const percentage = user?.mirrorPercentage ?? payload.mirrorPercentage ?? 100;
-      const prefix = user?.mirrorPrefix ?? payload.mirrorPrefix ?? "TRX";
+      const percentage = userSettings?.mirrorPercentage ?? payload.mirrorPercentage ?? 100;
+      const prefix = userSettings?.mirrorPrefix ?? payload.mirrorPrefix ?? "TRX";
 
       const allTrx = await prisma.transaction.findMany({
         where: whereStore,
@@ -124,7 +159,11 @@ export async function GET(request: Request) {
         );
       }
 
-      const recentTransactions = [...mirrored].reverse().slice(0, 5);
+      const recentTransactions = [...mirrored].reverse().slice(0, 5).map((t) => ({
+        ...t,
+        invoiceNumber: hideTransactionId ? "" : t.invoiceNumber,
+        hideInvoice: hideTransactionId,
+      }));
 
       const topProducts = Object.values(productSalesMap)
         .sort((a, b) => b.quantity - a.quantity)
@@ -153,6 +192,8 @@ export async function GET(request: Request) {
         topProducts,
         isMirroring: true,
         mirrorPercentage: percentage,
+        hideTransactionId,
+        dateRangeLimit,
       });
     }
 
@@ -286,6 +327,12 @@ export async function GET(request: Request) {
       take: 5,
     });
 
+    const recentTransactionsFormatted = recentTransactions.map((t) => ({
+      ...t,
+      invoiceNumber: hideTransactionId ? "" : t.invoiceNumber,
+      hideInvoice: hideTransactionId,
+    }));
+
     return NextResponse.json({
       summary: {
         totalTransactions: transactionsCount,
@@ -298,8 +345,10 @@ export async function GET(request: Request) {
       categoryDistribution,
       paymentMethods: paymentMethodsMap,
       lowStockProducts,
-      recentTransactions,
+      recentTransactions: recentTransactionsFormatted,
       topProducts,
+      hideTransactionId,
+      dateRangeLimit,
     });
   } catch (error: any) {
     console.error("Reports summary error:", error);

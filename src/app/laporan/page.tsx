@@ -106,19 +106,6 @@ export default function LaporanPage() {
             </div>
           </div>
 
-          {currentUser?.role === "MIRRORING" && (
-            <div className="bg-amber-50 border border-amber-200 text-amber-900 px-4 py-3 rounded-2xl flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs">
-              <div className="flex items-center space-x-2">
-                <span className="w-2 h-2 rounded-full bg-amber-500 animate-pulse"></span>
-                <span className="font-semibold">Mode Tampilan Laporan Khusus Terverifikasi</span>
-                <span className="text-amber-700 hidden sm:inline">— Data transaksi dan rekapitulasi tersinkronisasi terurut.</span>
-              </div>
-              <span className="font-mono bg-amber-100 text-amber-800 px-2.5 py-0.5 rounded-lg text-[11px] font-bold self-start sm:self-auto">
-                AKUN LAPORAN
-              </span>
-            </div>
-          )}
-
           {loading ? (
             <div className="py-20 flex flex-col items-center justify-center space-y-2 text-slate-400">
               <Loader2 className="w-6 h-6 animate-spin text-blue-500" />
