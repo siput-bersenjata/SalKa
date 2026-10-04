@@ -41,8 +41,8 @@ Database telah diisi dengan data awal (*seeded*):
 
 | Role | Username | Password | Keterangan |
 | :--- | :--- | :--- | :--- |
-| **Super Admin** | `admin` | `admin123` | Akses penuh dashboard, monitoring semua toko & atur masa aktif |
-| **Kasir Demo** | `kasir1` | `kasir123` | Toko Sumber Rejeki (Trial Aktif 30 Hari) |
+| **Super Admin** | `admin` | *(Disetel via seed / env)* | Akses penuh dashboard, monitoring semua toko & atur masa aktif |
+| **Kasir Demo** | `kasir1` | *(Disetel via seed)* | Toko Sumber Rejeki (Trial Aktif 30 Hari) |
 
 ---
 
