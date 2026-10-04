@@ -8,6 +8,30 @@
 
 Aplikasi sistem kasir (Point of Sale) terpadu dengan Web Dashboard Monitoring untuk pemilik toko dan Super Admin, dilengkapi sistem **Trial Otomatis 1 Bulan**, manajemen lisensi batas waktu, pengelolaan stok barang, serta kesiapan integrasi penuh ke **Aplikasi Android Kasir (Flutter)** dengan printer thermal Bluetooth (58mm/80mm).
 
+## 💡 Tentang SalKa (KasirKu)
+
+**SalKa (KasirKu)** adalah ekosistem Point of Sale (POS) dan Back Office modern berbasis cloud yang dirancang untuk mempermudah operasional usaha mikro, kecil, dan menengah (UMKM) serta bisnis ritel modern.
+
+Sistem ini dirancang untuk menyatukan dua kebutuhan utama dalam satu platform:
+- **Web Back Office (Next.js & Tailwind CSS)**: Platform berbasis web untuk pemilik toko dan Super Admin guna memonitor ringkasan omset harian, memantau grafik tren penjualan, menganalisis stok barang yang menipis, mengatur profil toko & format struk belanja, serta mengelola lisensi masa aktif akun kasir.
+- **Aplikasi Kasir POS (Flutter / Web POS)**: Sistem kasir di meja pembayaran untuk memproses transaksi belanja secara instan, mencetak struk belanja ke printer thermal Bluetooth (58mm/80mm), dan otomatis memotong persediaan stok barang secara akurat dan atomik.
+
+---
+
+## 📸 Galeri Pratinjau Antarmuka (UI Preview)
+
+Berikut gambaran visual antarmuka sistem SalKa:
+
+### 1. Web Back Office Dashboard & Analitik Penjualan
+> Ringkasan metrik omset real-time, grafik tren penjualan 30 hari, distribusi kategori menu, peringatan stok menipis, dan riwayat mutasi transaksi terkini.
+![Web Back Office Dashboard](assets/preview-dashboard.jpg)
+
+---
+
+### 2. Antarmuka Kasir POS & Manajemen Produk
+> Katalog produk ritel dengan pencarian cepat, filter kategori, status stok minim, serta panel kalkulasi pembayaran instan (Tunai, QRIS, Transfer).
+![Antarmuka Kasir POS](assets/preview-pos.jpg)
+
 ---
 
 ## 🌟 Fitur Utama
@@ -35,17 +59,6 @@ Aplikasi sistem kasir (Point of Sale) terpadu dengan Web Dashboard Monitoring un
 
 ---
 
-## 🚀 Kredensial Akun Default
-
-Database telah diisi dengan data awal (*seeded*):
-
-| Role | Username | Password | Keterangan |
-| :--- | :--- | :--- | :--- |
-| **Super Admin** | `admin` | *(Disetel via seed / env)* | Akses penuh dashboard, monitoring semua toko & atur masa aktif |
-| **Kasir Demo** | `kasir1` | *(Disetel via seed)* | Toko Sumber Rejeki (Trial Aktif 30 Hari) |
-
----
-
 ## 📡 Dokumentasi REST API (Untuk Aplikasi Android Flutter)
 
 Base URL: `https://salka.vercel.app/api` (atau `http://localhost:3000/api` saat dev lokal)
@@ -57,7 +70,7 @@ Authorization: Bearer <TOKEN_JWT>
 
 ### 1. Autentikasi & Akun
 - **POST** `/api/auth/register`: Mendaftar akun kasir baru (otomatis mendapatkan trial 30 hari).
-  - *Body*: `{"username": "tokojaya", "password": "password123", "storeName": "Toko Jaya", "fullName": "Jaya", "phone": "08123456789"}`
+  - *Body*: `{"username": "tokojaya", "password": "<PASSWORD>", "storeName": "Toko Jaya", "fullName": "Jaya", "phone": "08123456789"}`
 - **POST** `/api/auth/login`: Login username & password.
   - *Returns*: `{ token, user, store, trial: { status, isExpired, daysRemaining, expiresAt, isLifetime } }`
 - **GET** `/api/auth/me`: Cek status user dan sisa masa aktif saat ini.
